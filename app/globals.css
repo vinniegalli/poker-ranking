@@ -1,27 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 160 40% 10%;
+    --foreground: 45 30% 92%;
+    --card: 160 35% 13%;
+    --card-foreground: 45 30% 92%;
+    --popover: 160 35% 13%;
+    --popover-foreground: 45 30% 92%;
+    --primary: 43 56% 54%;
+    --primary-foreground: 160 40% 10%;
+    --secondary: 160 30% 18%;
+    --secondary-foreground: 45 30% 92%;
+    --muted: 160 30% 18%;
+    --muted-foreground: 45 20% 60%;
+    --accent: 43 56% 54%;
+    --accent-foreground: 160 40% 10%;
+    --destructive: 0 62% 70%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 25% 22%;
+    --input: 160 25% 22%;
+    --ring: 43 56% 54%;
+    --radius: 0.5rem;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    background-color: #1a3a2a;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(26, 70, 40, 0.4) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(20, 50, 30, 0.3) 0%, transparent 40%);
+    min-height: 100vh;
+  }
+  h1, h2, h3 {
+    font-family: 'Playfair Display', serif;
+  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-mono-numbers {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.gold-border {
+  border: 1px solid rgba(201, 168, 76, 0.35);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.08), 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.positive {
+  color: #4ade80;
+}
+
+.negative {
+  color: #f87171;
 }

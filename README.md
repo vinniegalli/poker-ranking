@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Poker Ranking
 
-## Getting Started
+Sistema de ranking para cash game de poker doméstico.
 
-First, run the development server:
+## Stack
+
+- **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + Shadcn/ui
+- **Banco de dados**: Supabase (PostgreSQL)
+- **Deploy**: Vercel
+
+---
+
+## Setup Local
+
+### 1. Instalar dependências
+
+```bash
+npm install
+```
+
+### 2. Configurar Supabase
+
+1. Acesse [supabase.com](https://supabase.com) e crie um projeto.
+2. No SQL Editor, execute o arquivo `supabase-schema.sql`.
+3. Copie a URL e a chave `anon` (Settings → API).
+
+### 3. Variáveis de ambiente
+
+Edite `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon
+ADMIN_PASSWORD=suasenhasecreta
+```
+
+### 4. Rodar
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy na Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push para GitHub.
+2. Importe o repositório na Vercel.
+3. Adicione as 3 variáveis de ambiente no painel.
+4. Deploy.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Regras de Negócio
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Tipo | Valor | Destino |
+|------|-------|---------|
+| Primeiro buy-in | R$ 25,00 | R$ 20 pote + R$ 5 caixa |
+| Recompra (add-on) | R$ 20,00 | 100% pote |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Soma de Compra** = R$ 25 + (recompras × R$ 20)
+- **Soma de Saldo** = Soma de Ganho − Soma de Compra
+- **Caixa** = R$ 5 por participação (1 por jogador por noite)
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Modo Admin
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Clique no cadeado na navbar, digite a senha configurada em `ADMIN_PASSWORD`.
+
+Com acesso admin: criar sessões, adicionar jogadores, registrar buy-ins, salvar resultados, encerrar sessões.
