@@ -54,37 +54,35 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
-              Ranking Geral
-            </h1>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              Sessões encerradas
-            </p>
-          </div>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
+            Ranking Geral
+          </h1>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Sessões encerradas
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="h-9 w-28 sm:w-36 bg-card border-border text-sm">
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="all">Todos os anos</SelectItem>
-                {years.map((y) => (
-                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex items-center gap-2">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="h-10 flex-1 sm:flex-none sm:w-36 bg-card border-border text-sm">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">Todos os anos</SelectItem>
+              {years.map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            {isAdmin && (
-              <DistribuirPremiacaoModal
-                caixaTotal={caixaTotal}
-                onDistribuido={handleDistribuido}
-              />
-            )}
-          </div>
+          {isAdmin && (
+            <DistribuirPremiacaoModal
+              caixaTotal={caixaTotal}
+              onDistribuido={handleDistribuido}
+            />
+          )}
         </div>
       </div>
 

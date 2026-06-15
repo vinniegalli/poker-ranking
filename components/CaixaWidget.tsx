@@ -135,21 +135,21 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
 
   return (
     <div className="rounded-lg card-border bg-card">
-      <div className="p-5 flex items-start justify-between gap-4">
+      <div className="p-5">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">{label}</p>
-          <p className="text-3xl font-display font-bold text-gold mt-2 tracking-tight">
+          <p className="text-3xl sm:text-4xl font-display font-bold text-gold mt-2 tracking-tight break-words">
             {formatBRL(total)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Premiação acumulada</p>
         </div>
 
         {isAdmin && (
-          <div className="flex gap-2 mt-1 flex-shrink-0">
+          <div className="flex gap-2 mt-4">
             {/* Entrada */}
             <Dialog open={entradaOpen} onOpenChange={setEntradaOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50">
+                <Button variant="outline" size="sm" className="flex-1 h-10 justify-center border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50">
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
                   Entrada
                 </Button>
@@ -189,7 +189,7 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
             {/* Saída */}
             <Dialog open={saidaOpen} onOpenChange={setSaidaOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 border-border text-muted-foreground hover:text-foreground">
+                <Button variant="outline" size="sm" className="flex-1 h-10 justify-center border-border text-muted-foreground hover:text-foreground">
                   <Minus className="h-3.5 w-3.5 mr-1.5" />
                   Saída
                 </Button>
@@ -242,17 +242,17 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
                 : (m as CaixaSaida).description
 
               return (
-                <div key={m.kind + '-' + ('distribution_id' in m ? m.distribution_id : m.id)} className="flex items-center justify-between text-sm">
+                <div key={m.kind + '-' + ('distribution_id' in m ? m.distribution_id : m.id)} className="flex items-center justify-between gap-2 text-sm">
                   <div className="min-w-0 flex-1">
-                    <span className="text-foreground/80 truncate">{label}</span>
-                    {isPremiacao && (
-                      <span className="text-xs text-gold/60 ml-1.5">premiação</span>
-                    )}
-                    <span className="text-muted-foreground text-xs ml-2">
+                    <p className="text-foreground/80 truncate">
+                      {label}
+                      {isPremiacao && <span className="text-xs text-gold/60 ml-1.5">premiação</span>}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
                       {format(new Date(m.date + 'T12:00:00'), "d MMM yy", { locale: ptBR })}
-                    </span>
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className={`font-mono-numbers text-sm ${isPos ? 'positive' : 'negative'}`}>
                       {isPos ? '+' : '−'}{formatBRL(amount)}
                     </span>

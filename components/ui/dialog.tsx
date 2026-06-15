@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -39,30 +39,32 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         // shared
-        "fixed z-50 w-full bg-background border shadow-lg",
-        "duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out",
+        "fixed z-50 bg-card border border-border shadow-2xl",
+        "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        // mobile — bottom sheet
-        "bottom-0 inset-x-0 rounded-t-2xl p-6 pb-10",
-        "max-h-[92dvh] overflow-y-auto",
-        "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        // desktop — centered dialog
-        "sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:top-[50%]",
+        "focus:outline-none",
+        // ── mobile: anchored to the TOP so the keyboard (which rises from the
+        //    bottom) never covers the inputs. Slides down from the top edge.
+        "top-0 inset-x-0 rounded-b-2xl border-t-0",
+        "px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-6",
+        "max-h-[88dvh] overflow-y-auto overscroll-contain",
+        "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        // ── desktop: classic centered dialog
+        "sm:top-[50%] sm:left-[50%] sm:bottom-auto sm:inset-x-auto",
         "sm:translate-x-[-50%] sm:translate-y-[-50%]",
-        "sm:rounded-xl sm:max-w-lg sm:max-h-[90dvh]",
+        "sm:w-full sm:max-w-lg sm:rounded-xl sm:border-t sm:p-6",
+        "sm:max-h-[90dvh]",
         "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+        "sm:data-[state=closed]:slide-out-to-top-0 sm:data-[state=open]:slide-in-from-top-0",
         className
       )}
       {...props}
     >
-      {/* Handle indicator — only meaningful on mobile */}
-      <div className="sm:hidden absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-border/70" />
-
       {children}
 
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full w-8 h-8 flex items-center justify-center opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full w-9 h-9 flex items-center justify-center text-muted-foreground opacity-80 transition-opacity hover:opacity-100 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-ring disabled:pointer-events-none">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">Fechar</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
@@ -74,10 +76,7 @@ const DialogHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn(
-      "flex flex-col space-y-1.5 text-left mt-2",
-      className
-    )}
+    className={cn("flex flex-col space-y-1.5 text-left mb-4 pr-8", className)}
     {...props}
   />
 )

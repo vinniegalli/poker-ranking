@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
 import "./globals.css";
 
@@ -20,6 +20,16 @@ const Toaster = dynamic(() => import('@/components/ui/toaster').then(m => ({ def
 export const metadata: Metadata = {
   title: "Stacks",
   description: "Ranking de cash game doméstico",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  // Resize the layout when the on-screen keyboard opens (Android/Chrome),
+  // so centered dialogs stay above the keyboard instead of hiding behind it.
+  interactiveWidget: "resizes-content",
+  themeColor: "#121113",
 };
 
 export default function RootLayout({

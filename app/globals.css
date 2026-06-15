@@ -33,13 +33,25 @@
   * {
     @apply border-border;
   }
+  html, body {
+    /* Never allow the page itself to scroll sideways — kills the
+       "tables bleeding off the edges" effect when a child is too wide. */
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3 {
     font-family: 'Syne', sans-serif;
+  }
+  /* Inputs at >=16px prevent iOS Safari from auto-zooming on focus. */
+  input, select, textarea {
+    font-size: 16px;
   }
 }
 
