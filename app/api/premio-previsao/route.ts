@@ -15,6 +15,9 @@ export async function GET() {
   return NextResponse.json(data)
 }
 
+// Fixed ID — single-row pattern via upsert
+const PREVISAO_ID = '00000000-0000-0000-0000-000000000001'
+
 export async function PUT(req: NextRequest) {
   const { min_freq, placements, percentages } = await req.json()
 
@@ -26,12 +29,12 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 })
   }
 
-  // Single-row pattern: delete all then insert
-  await supabase.from('premio_previsao').delete().not('id', 'is', null)
-
   const { data, error } = await supabase
     .from('premio_previsao')
-    .insert({ min_freq, placements, percentages, updated_at: new Date().toISOString() })
+    .upsert(
+      { id: PREVISAO_ID, min_freq, placements, percentages, updated_at: new Date().toISOString() },
+      { onConflict: 'id' }
+    )
     .select()
     .single()
 

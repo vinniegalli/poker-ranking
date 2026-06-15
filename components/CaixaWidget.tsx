@@ -149,7 +149,7 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
             {/* Entrada */}
             <Dialog open={entradaOpen} onOpenChange={setEntradaOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50">
+                <Button variant="outline" size="sm" className="h-9 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50">
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
                   Entrada
                 </Button>
@@ -189,7 +189,7 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
             {/* Saída */}
             <Dialog open={saidaOpen} onOpenChange={setSaidaOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground">
+                <Button variant="outline" size="sm" className="h-9 border-border text-muted-foreground hover:text-foreground">
                   <Minus className="h-3.5 w-3.5 mr-1.5" />
                   Saída
                 </Button>
@@ -263,7 +263,7 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
                           else if (m.kind === 'entrada') handleDeleteEntrada(m.id)
                           else handleDeletePremiacao((m as PremiacaoDistribution).distribution_id)
                         }}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        className="text-muted-foreground hover:text-destructive transition-colors -mr-1 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
                         title={isPremiacao ? 'Reverter premiação' : 'Remover'}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

@@ -156,9 +156,10 @@ export function DistribuirPremiacaoModal({ caixaTotal, onDistribuido }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gold text-felt hover:bg-gold/90 font-semibold" size="sm">
-          <Gift className="h-4 w-4 mr-2" />
-          Distribuir Premiação
+        <Button className="bg-gold text-felt hover:bg-gold/90 font-semibold h-9 px-3 text-sm" size="sm">
+          <Gift className="h-3.5 w-3.5 sm:mr-2" />
+          <span className="hidden sm:inline">Distribuir Premiação</span>
+          <span className="sm:hidden">Prêmio</span>
         </Button>
       </DialogTrigger>
       <DialogContent

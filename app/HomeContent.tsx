@@ -53,21 +53,21 @@ export default function HomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8">
-        <div className="flex items-start justify-between flex-wrap gap-4">
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      <div className="mb-5">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
+            <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
               Ranking Geral
             </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Acumulado de sessões encerradas
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              Sessões encerradas
             </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-36 bg-card border-border">
+              <SelectTrigger className="h-9 w-28 sm:w-36 bg-card border-border text-sm">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
@@ -88,7 +88,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-4 sm:gap-6">
         <CaixaWidget
           total={caixaTotal}
           label={selectedYear !== 'all' ? `Caixa ${selectedYear}` : 'Saldo em Caixa'}

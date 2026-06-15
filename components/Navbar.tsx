@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 
 const AdminModal = dynamic(() => import('@/components/AdminModal').then(m => ({ default: m.AdminModal })), {
   ssr: false,
-  loading: () => <div className="h-8 w-8" />,
+  loading: () => <div className="h-10 w-10" />,
 })
 
 const links = [
@@ -26,13 +26,13 @@ export function Navbar() {
           <span className="text-foreground">STACK</span><span className="text-gold">S</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-0.5">
           {links.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               className={cn(
-                'px-3 py-1.5 rounded text-sm font-medium transition-colors',
+                'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] flex items-center',
                 pathname === href || (href !== '/' && (pathname?.startsWith(href) ?? false))
                   ? 'text-foreground bg-white/6'
                   : 'text-muted-foreground hover:text-foreground hover:bg-white/4'
@@ -41,7 +41,7 @@ export function Navbar() {
               {label}
             </Link>
           ))}
-          <div className="ml-2 pl-2 border-l border-border">
+          <div className="ml-1 pl-2 border-l border-border flex items-center">
             <AdminModal />
           </div>
         </nav>
