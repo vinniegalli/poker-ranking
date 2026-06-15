@@ -47,22 +47,25 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
   const [editPcts, setEditPcts] = useState<string[]>(['50', '30', '20'])
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { fetchData() }, [])
+  // Fetch previsão config once on mount
+  useEffect(() => {
+    fetch('/api/premio-previsao')
+      .then(r => r.json())
+      .then(pv => { setPrevisao(pv ?? null); setLoading(false) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function fetchData() {
-    const [pvRes, sessRes] = await Promise.all([
-      fetch('/api/premio-previsao'),
-      fetch('/api/sessions'),
-    ])
-    const [pv, sessions] = await Promise.all([pvRes.json(), sessRes.json()])
-    setPrevisao(pv ?? null)
-    setTotalSessions(
-      Array.isArray(sessions)
-        ? sessions.filter((s: { is_closed: boolean }) => s.is_closed).length
-        : 0
-    )
-    setLoading(false)
-  }
+  // Re-fetch sessions count whenever ranking updates (closed session → ranking changes)
+  useEffect(() => {
+    fetch('/api/sessions')
+      .then(r => r.json())
+      .then(sessions => {
+        setTotalSessions(
+          Array.isArray(sessions)
+            ? sessions.filter((s: { is_closed: boolean }) => s.is_closed).length
+            : 0
+        )
+      })
+  }, [ranking]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openEdit() {
     if (previsao) {
@@ -98,9 +101,11 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
     })
     setSaving(false)
     if (res.ok) {
+      // Use PUT response directly to avoid stale GET cache
+      const saved = await res.json()
+      setPrevisao(saved)
       toast({ title: 'Previsão atualizada!' })
       setEditOpen(false)
-      fetchData()
     } else {
       toast({ title: 'Erro ao salvar', variant: 'destructive' })
     }
