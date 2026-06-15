@@ -1,12 +1,12 @@
 'use client'
 
-
 import { useEffect, useState } from 'react'
 import { RankingTable } from '@/components/RankingTable'
+import { RankingChart } from '@/components/RankingChart'
 import { CaixaWidget } from '@/components/CaixaWidget'
+import { QuadraDoMes } from '@/components/QuadraDoMes'
 import { RankingRow } from '@/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Spade } from 'lucide-react'
 import Link from 'next/link'
 
 const currentYear = new Date().getFullYear()
@@ -43,8 +43,7 @@ export default function HomePage() {
       <div className="mb-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold text-gold flex items-center gap-3">
-              <Spade className="h-7 w-7" />
+            <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
               Ranking Geral
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -72,7 +71,7 @@ export default function HomePage() {
                 href={`/ranking/${selectedYear}`}
                 className="text-xs text-gold hover:underline"
               >
-                Ver ranking premiação →
+                Ver premiação →
               </Link>
             )}
           </div>
@@ -82,16 +81,22 @@ export default function HomePage() {
       <div className="grid gap-6">
         <CaixaWidget
           total={caixaTotal}
-          label={selectedYear !== 'all' ? `Caixa ${selectedYear}` : 'Saldo em Caixa (Total)'}
+          label={selectedYear !== 'all' ? `Caixa ${selectedYear}` : 'Saldo em Caixa'}
+          onSaidaChange={fetchData}
         />
 
         {loading ? (
-          <div className="rounded-lg gold-border bg-card p-12 text-center text-muted-foreground">
+          <div className="rounded-lg card-border bg-card p-12 text-center text-muted-foreground text-sm">
             Carregando ranking...
           </div>
         ) : (
-          <RankingTable data={ranking} />
+          <>
+            <RankingTable data={ranking} />
+            <RankingChart year={selectedYear !== 'all' ? selectedYear : undefined} />
+          </>
         )}
+
+        <QuadraDoMes />
       </div>
     </div>
   )

@@ -45,7 +45,7 @@ const config: Config = {
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         gold: "#c9a84c",
-        felt: "#1a3a2a",
+        felt: "#0e0e12",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -53,9 +53,9 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        display: ["Playfair Display", "serif"],
+        display: ["Syne", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
-        sans: ["Inter", "sans-serif"],
+        sans: ["DM Sans", "sans-serif"],
       },
     },
   },

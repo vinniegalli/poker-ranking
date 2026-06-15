@@ -62,15 +62,15 @@ export function AdminModal() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-sm gold-border gold-glow bg-card">
+        <DialogContent className="sm:max-w-sm card-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-display text-gold text-xl">
+            <DialogTitle className="font-display text-foreground">
               Acesso Admin
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground/80">
+              <Label htmlFor="password" className="text-muted-foreground text-xs uppercase tracking-wider">
                 Senha
               </Label>
               <Input
@@ -79,14 +79,14 @@ export function AdminModal() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Digite a senha..."
-                className="bg-secondary border-border"
+                className="bg-secondary border-border h-12 text-base"
                 autoFocus
               />
             </div>
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gold text-felt hover:bg-gold/90 font-semibold"
+              className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold text-base"
             >
               {loading ? 'Verificando...' : 'Entrar'}
             </Button>

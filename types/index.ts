@@ -9,6 +9,7 @@ export interface Session {
   date: string
   notes: string | null
   is_closed: boolean
+  status: 'pending' | 'active' | 'closed'
   created_at: string
 }
 
@@ -33,6 +34,14 @@ export interface Caixa {
   created_at: string
 }
 
+export interface CaixaSaida {
+  id: string
+  description: string
+  amount: number
+  date: string
+  created_at: string
+}
+
 export interface RankingRow {
   player_id: string
   name: string
@@ -40,6 +49,25 @@ export interface RankingRow {
   soma_compra: number
   soma_ganho: number
   soma_saldo: number
+  media_compra: number
+  media_ganho: number
+}
+
+export interface EvolucaoData {
+  data: Record<string, number | string>[]
+  players: string[]
+}
+
+export interface QuadraMes {
+  id: string
+  month: string   // ISO date, first day of month
+  rank: string    // 'A', 'K', 'Q', 'J', '10', '9' ... '2'
+  prize_amount: number
+  description: string | null
+  claimed_by: string | null
+  claimed_at: string | null
+  created_at: string
+  players?: Player
 }
 
 export interface SessionWithPlayers extends Session {

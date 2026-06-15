@@ -5,7 +5,7 @@ import "./globals.css";
 const Navbar = dynamic(() => import('@/components/Navbar').then(m => ({ default: m.Navbar })), {
   ssr: false,
   loading: () => (
-    <header className="sticky top-0 z-50 border-b border-border/50 h-14 bg-felt/95" />
+    <header className="sticky top-0 z-50 border-b border-border h-14 bg-felt/95" />
   ),
 });
 
@@ -14,8 +14,8 @@ const Toaster = dynamic(() => import('@/components/ui/toaster').then(m => ({ def
 });
 
 export const metadata: Metadata = {
-  title: "Poker Ranking",
-  description: "Sistema de ranking para cash game de poker doméstico",
+  title: "Stacks",
+  description: "Ranking de cash game doméstico",
 };
 
 export default function RootLayout({

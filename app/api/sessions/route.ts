@@ -22,14 +22,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { date, notes } = await req.json()
+  const { date, notes, status } = await req.json()
   if (!date) {
     return NextResponse.json({ error: 'Date is required' }, { status: 400 })
   }
 
   const { data, error } = await supabase
     .from('sessions')
-    .insert({ date, notes: notes || null })
+    .insert({ date, notes: notes || null, status: status ?? 'active' })
     .select()
     .single()
 

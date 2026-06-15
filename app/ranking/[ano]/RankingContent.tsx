@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 import { RankingTable } from '@/components/RankingTable'
 import { CaixaWidget } from '@/components/CaixaWidget'
 import { RankingRow } from '@/types'
-import { Trophy, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 export default function RankingAnoPage() {
@@ -40,12 +40,11 @@ export default function RankingAnoPage() {
         >
           <ArrowLeft className="h-3 w-3" /> Voltar ao ranking geral
         </Link>
-        <h1 className="font-display text-3xl font-bold text-gold flex items-center gap-3">
-          <Trophy className="h-7 w-7" />
-          Ranking de Premiação {ano}
+        <h1 className="font-display text-2xl font-bold text-foreground tracking-tight">
+          Premiação {ano}
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Este ranking determina os vencedores do caixa acumulado em {ano}
+          Vencedores do caixa acumulado em {ano}
         </p>
       </div>
 
@@ -53,7 +52,7 @@ export default function RankingAnoPage() {
         <CaixaWidget total={caixaTotal} label={`Premiação ${ano}`} />
 
         {loading ? (
-          <div className="rounded-lg gold-border bg-card p-12 text-center text-muted-foreground">
+          <div className="rounded-lg card-border bg-card p-12 text-center text-muted-foreground text-sm">
             Carregando ranking...
           </div>
         ) : (

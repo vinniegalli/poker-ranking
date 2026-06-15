@@ -1,29 +1,23 @@
 'use client'
 
-
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, UserPlus, CheckCircle2, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft, UserPlus, CheckCircle2, Trash2,
+  Copy, Check, PlayCircle, Users, AlertTriangle, Scale
+} from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { BuyinForm } from '@/components/BuyinForm'
 import { useAdmin } from '@/hooks/use-admin'
@@ -48,6 +42,9 @@ export default function SessionDetailPage() {
   const [addMode, setAddMode] = useState<'existing' | 'new'>('existing')
   const [addingPlayer, setAddingPlayer] = useState(false)
   const [closing, setClosing] = useState(false)
+  const [reopening, setReopening] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSession(); fetchPlayers() }, [id])
@@ -55,8 +52,7 @@ export default function SessionDetailPage() {
   async function fetchSession() {
     const res = await fetch(`/api/sessions/${id}`)
     if (!res.ok) { router.push('/sessoes'); return }
-    const data = await res.json()
-    setSession(data)
+    setSession(await res.json())
     setLoading(false)
   }
 
@@ -66,10 +62,46 @@ export default function SessionDetailPage() {
     setPlayers(Array.isArray(data) ? data : [])
   }
 
+  async function patchSession(body: Record<string, unknown>) {
+    return fetch(`/api/sessions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  }
+
+  async function handleStart() {
+    setStarting(true)
+    const res = await patchSession({ status: 'active' })
+    setStarting(false)
+    if (res.ok) { toast({ title: 'Sessão iniciada!' }); fetchSession() }
+    else toast({ title: 'Erro ao iniciar', variant: 'destructive' })
+  }
+
+  async function handleClose() {
+    setClosing(true)
+    const res = await patchSession({ status: 'closed', is_closed: true })
+    setClosing(false)
+    if (res.ok) {
+      toast({ title: 'Sessão encerrada!' })
+      fetchSession()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      toast({ title: body.error ?? 'Erro ao encerrar', variant: 'destructive' })
+    }
+  }
+
+  async function handleReopen() {
+    setReopening(true)
+    const res = await patchSession({ status: 'active', is_closed: false })
+    setReopening(false)
+    if (res.ok) { toast({ title: 'Sessão reaberta!' }); fetchSession() }
+    else toast({ title: 'Erro ao reabrir', variant: 'destructive' })
+  }
+
   async function handleAddPlayer(e: React.FormEvent) {
     e.preventDefault()
     setAddingPlayer(true)
-
     let playerId = selectedPlayerId
 
     if (addMode === 'new') {
@@ -81,11 +113,9 @@ export default function SessionDetailPage() {
       })
       if (!res.ok) {
         toast({ title: 'Erro ao criar jogador', variant: 'destructive' })
-        setAddingPlayer(false)
-        return
+        setAddingPlayer(false); return
       }
-      const newPlayer = await res.json()
-      playerId = newPlayer.id
+      playerId = (await res.json()).id
     }
 
     const res = await fetch(`/api/sessions/${id}/players`, {
@@ -94,132 +124,312 @@ export default function SessionDetailPage() {
       body: JSON.stringify({ player_id: playerId }),
     })
     setAddingPlayer(false)
-
     if (res.ok) {
       toast({ title: 'Jogador adicionado!' })
-      setAddPlayerOpen(false)
-      setSelectedPlayerId('')
-      setNewPlayerName('')
-      fetchSession()
-      fetchPlayers()
+      setAddPlayerOpen(false); setSelectedPlayerId(''); setNewPlayerName('')
+      fetchSession(); fetchPlayers()
     } else {
       const err = await res.json()
-      toast({ title: err.error || 'Erro ao adicionar jogador', variant: 'destructive' })
+      toast({ title: err.error || 'Erro ao adicionar', variant: 'destructive' })
     }
   }
 
-  async function handleRemovePlayer(sessionPlayerId: string) {
-    const res = await fetch(`/api/sessions/${id}/players/${sessionPlayerId}`, { method: 'DELETE' })
-    if (res.ok) {
-      toast({ title: 'Jogador removido' })
-      fetchSession()
-    } else {
-      toast({ title: 'Erro ao remover jogador', variant: 'destructive' })
-    }
+  async function handleRemovePlayer(spId: string) {
+    const res = await fetch(`/api/sessions/${id}/players/${spId}`, { method: 'DELETE' })
+    if (res.ok) { toast({ title: 'Removido' }); fetchSession() }
+    else toast({ title: 'Erro ao remover', variant: 'destructive' })
   }
 
-  async function handleCloseSession() {
-    setClosing(true)
-    const res = await fetch(`/api/sessions/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_closed: true }),
+  function copyInviteLink() {
+    const url = `${window.location.origin}/sessoes/${id}/confirmar`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      toast({ title: 'Link copiado!' })
+      setTimeout(() => setCopied(false), 2000)
     })
-    setClosing(false)
-    if (res.ok) {
-      toast({ title: 'Sessão encerrada!' })
-      fetchSession()
-    } else {
-      toast({ title: 'Erro ao encerrar sessão', variant: 'destructive' })
-    }
   }
 
   if (loading || !session) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-8 text-center text-muted-foreground">
+      <div className="mx-auto max-w-2xl px-4 py-8 text-center text-muted-foreground text-sm">
         Carregando sessão...
       </div>
     )
   }
 
+  const { status } = session
   const date = new Date(session.date + 'T12:00:00')
-  const totalPot = session.session_players.reduce((sum, sp) => sum + Number(sp.soma_compra), 0)
-  const totalCaixa = session.session_players.reduce((sum, sp) => sum + Number(sp.caixa_contribution), 0)
-  const totalPaid = session.session_players.reduce((sum, sp) => sum + Number(sp.soma_ganho), 0)
-
+  const confirmedCount = session.session_players.length
+  const isFull = confirmedCount >= 10
+  const totalCompra = session.session_players.reduce((s, sp) => s + Number(sp.soma_compra), 0)
+  const totalGanho = session.session_players.reduce((s, sp) => s + Number(sp.soma_ganho), 0)
+  const totalCaixa = session.session_players.reduce((s, sp) => s + Number(sp.caixa_contribution), 0)
   const existingIds = new Set(session.session_players.map((sp) => sp.player_id))
   const availablePlayers = players.filter((p) => !existingIds.has(p.id))
+  const diff = totalGanho - totalCompra
+  const isBalanced = Math.abs(diff) < 0.01
+
+  const statusBadge = {
+    pending: <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-xs">Aguardando confirmações</Badge>,
+    active: <Badge className="bg-gold/10 text-gold border-gold/20 text-xs">Em andamento</Badge>,
+    closed: <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/20 text-xs"><CheckCircle2 className="h-3 w-3 mr-1" />Encerrada</Badge>,
+  }[status]
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <Link
-        href="/sessoes"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-6 transition-colors"
-      >
-        <ArrowLeft className="h-3 w-3" /> Voltar às sessões
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      <Link href="/sessoes" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+        <ArrowLeft className="h-3 w-3" /> Sessões
       </Link>
 
-      <div className="mb-6 flex items-start justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-gold capitalize">
-            {format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </h1>
-          {session.notes && (
-            <p className="text-muted-foreground text-sm mt-1">{session.notes}</p>
-          )}
-          <div className="flex items-center gap-2 mt-2">
-            {session.is_closed ? (
-              <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                <CheckCircle2 className="h-3 w-3 mr-1" /> Encerrada
-              </Badge>
-            ) : (
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                Em andamento
-              </Badge>
+      {/* Header */}
+      <div className="mb-5">
+        <h1 className="font-display text-xl font-bold text-foreground capitalize tracking-tight">
+          {format(date, "EEEE, d 'de' MMMM", { locale: ptBR })}
+        </h1>
+        <p className="text-muted-foreground text-xs mt-0.5">
+          {format(date, 'yyyy', { locale: ptBR })}
+          {session.notes && ` · ${session.notes}`}
+        </p>
+        <div className="mt-2">{statusBadge}</div>
+      </div>
+
+      {/* ─── FASE: PENDING ─── */}
+      {status === 'pending' && (
+        <>
+          {/* Link de convite */}
+          <div className="rounded-xl card-border bg-card px-5 py-4 mb-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Link de convite</p>
+            <div className="flex gap-2">
+              <div className="flex-1 bg-secondary rounded-lg px-3 py-2.5 text-xs text-muted-foreground font-mono truncate">
+                {typeof window !== 'undefined'
+                  ? `${window.location.origin}/sessoes/${id}/confirmar`
+                  : `/sessoes/${id}/confirmar`}
+              </div>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={copyInviteLink}
+                className="h-10 w-10 border-border flex-shrink-0"
+              >
+                {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground/60 mt-2">
+              Mande para os participantes confirmarem presença.
+            </p>
+          </div>
+
+          {/* Contador */}
+          <div className="rounded-xl card-border bg-card px-5 py-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Confirmados
+              </div>
+              <span className="font-mono-numbers font-bold text-foreground tabular-nums">
+                {confirmedCount}<span className="text-muted-foreground font-normal">/10</span>
+              </span>
+            </div>
+            <div className="w-full bg-secondary/50 rounded-full h-1.5 mb-4">
+              <div
+                className="bg-gold h-1.5 rounded-full transition-all"
+                style={{ width: `${(confirmedCount / 10) * 100}%` }}
+              />
+            </div>
+
+            {confirmedCount > 0 && (
+              <div className="space-y-1.5">
+                {session.session_players.map((sp) => (
+                  <div key={sp.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                      <span className="text-foreground">{sp.players?.name}</span>
+                    </div>
+                    {isAdmin && (
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemovePlayer(sp.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-        </div>
 
-        {isAdmin && !session.is_closed && (
-          <div className="flex gap-2">
-            <Dialog open={addPlayerOpen} onOpenChange={setAddPlayerOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="border-border hover:border-gold/50">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Adicionar Jogador
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-sm gold-border gold-glow bg-card">
-                <DialogHeader>
-                  <DialogTitle className="font-display text-gold">Adicionar Jogador</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleAddPlayer} className="space-y-4">
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={addMode === 'existing' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setAddMode('existing')}
-                      className={addMode === 'existing' ? 'bg-gold text-felt' : 'border-border'}
-                    >
-                      Existente
+          {/* Ações admin */}
+          {isAdmin && (
+            <div className="flex gap-2">
+              {!isFull && (
+                <Dialog open={addPlayerOpen} onOpenChange={setAddPlayerOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="border-border">
+                      <UserPlus className="h-4 w-4 mr-2" /> Adicionar
                     </Button>
-                    <Button
-                      type="button"
-                      variant={addMode === 'new' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setAddMode('new')}
-                      className={addMode === 'new' ? 'bg-gold text-felt' : 'border-border'}
-                    >
-                      Novo
-                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="card-border bg-card sm:max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle className="font-display text-foreground">Adicionar Jogador</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleAddPlayer} className="space-y-4 pt-1">
+                      <div className="flex gap-2">
+                        {['existing', 'new'].map((m) => (
+                          <Button key={m} type="button" size="sm"
+                            onClick={() => setAddMode(m as 'existing' | 'new')}
+                            className={addMode === m ? 'bg-gold text-felt flex-1' : 'border-border flex-1'}
+                            variant={addMode === m ? 'default' : 'outline'}
+                          >
+                            {m === 'existing' ? 'Existente' : 'Novo'}
+                          </Button>
+                        ))}
+                      </div>
+                      {addMode === 'existing' ? (
+                        <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+                          <SelectTrigger className="bg-secondary border-border h-12">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card border-border">
+                            {availablePlayers.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)}
+                          placeholder="Nome" className="bg-secondary border-border h-12 text-base" autoFocus />
+                      )}
+                      <Button type="submit" disabled={addingPlayer || (addMode === 'existing' && !selectedPlayerId)}
+                        className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold">
+                        {addingPlayer ? 'Adicionando...' : 'Adicionar'}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              <Button
+                onClick={handleStart}
+                disabled={starting || confirmedCount === 0}
+                className="bg-gold text-felt hover:bg-gold/90 font-semibold flex-1 sm:flex-none"
+              >
+                <PlayCircle className="h-4 w-4 mr-2" />
+                {starting ? 'Iniciando...' : 'Iniciar Sessão'}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ─── FASE: ACTIVE / CLOSED ─── */}
+      {(status === 'active' || status === 'closed') && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {[
+              { label: 'Jogadores', value: String(confirmedCount) },
+              { label: 'Total compras', value: formatBRL(totalCompra) },
+              { label: 'Caixa', value: formatBRL(totalCaixa) },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-lg card-border bg-card px-3 py-3 text-center">
+                <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+                <p className="font-mono-numbers font-semibold text-foreground text-sm mt-1">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Conferência de caixa */}
+          {status === 'active' && confirmedCount > 0 && (
+            <div className={cn(
+              'rounded-lg card-border px-4 py-3 mb-4 transition-colors',
+              isBalanced ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-amber-500/5 border-amber-500/20'
+            )}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Scale className={cn('h-3.5 w-3.5', isBalanced ? 'text-emerald-400' : 'text-amber-400')} />
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Conferência do pote
+                  </span>
+                </div>
+                {isBalanced ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Fechado
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-amber-400 font-medium">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {diff > 0 ? `+${formatBRL(diff)}` : formatBRL(diff)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-8">
+                    <span className="text-xs text-muted-foreground">Pote (compras)</span>
+                    <span className="font-mono-numbers text-xs text-foreground">{formatBRL(totalCompra)}</span>
                   </div>
+                  <div className="flex items-center justify-between gap-8">
+                    <span className="text-xs text-muted-foreground">Total ganho</span>
+                    <span className="font-mono-numbers text-xs text-foreground">{formatBRL(totalGanho)}</span>
+                  </div>
+                </div>
+              </div>
+              {!isBalanced && (
+                <p className="text-xs text-amber-400/80 mt-2.5 leading-relaxed">
+                  {diff > 0
+                    ? `Os jogadores ganharam ${formatBRL(diff)} a mais do que entrou no pote.`
+                    : `Faltam ${formatBRL(Math.abs(diff))} para fechar o pote. Verifique os valores.`}
+                </p>
+              )}
+            </div>
+          )}
 
-                  {addMode === 'existing' ? (
-                    <div className="space-y-2">
-                      <Label className="text-foreground/80">Jogador</Label>
+          {/* Admin: reabrir sessão encerrada */}
+          {isAdmin && status === 'closed' && (
+            <div className="flex gap-2 mb-5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReopen}
+                disabled={reopening}
+                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                {reopening ? 'Reabrindo...' : 'Reabrir sessão'}
+              </Button>
+            </div>
+          )}
+
+          {/* Admin actions (active only) */}
+          {isAdmin && status === 'active' && (
+            <div className="flex gap-2 mb-5">
+              <Dialog open={addPlayerOpen} onOpenChange={setAddPlayerOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-border flex-1 sm:flex-none">
+                    <UserPlus className="h-4 w-4 mr-2" /> Adicionar jogador
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="card-border bg-card sm:max-w-sm max-h-[90dvh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="font-display text-foreground">Adicionar Jogador</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleAddPlayer} className="space-y-4 pt-1">
+                    <div className="flex gap-2">
+                      {['existing', 'new'].map((m) => (
+                        <Button key={m} type="button" size="sm"
+                          onClick={() => setAddMode(m as 'existing' | 'new')}
+                          className={addMode === m ? 'bg-gold text-felt flex-1' : 'border-border flex-1'}
+                          variant={addMode === m ? 'default' : 'outline'}
+                        >
+                          {m === 'existing' ? 'Existente' : 'Novo'}
+                        </Button>
+                      ))}
+                    </div>
+                    {addMode === 'existing' ? (
                       <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
-                        <SelectTrigger className="bg-secondary border-border">
+                        <SelectTrigger className="bg-secondary border-border h-12">
                           <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
@@ -228,133 +438,100 @@ export default function SessionDetailPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome</Label>
+                        <Input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)}
+                          placeholder="Nome do jogador" className="bg-secondary border-border h-12 text-base" autoFocus />
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground bg-secondary/40 rounded-lg p-3">
+                      Buy-in: <span className="text-gold font-mono-numbers">R$ 25,00</span>{' '}(R$ 20 pote + R$ 5 caixa)
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label className="text-foreground/80">Nome do Jogador</Label>
-                      <Input
-                        value={newPlayerName}
-                        onChange={(e) => setNewPlayerName(e.target.value)}
-                        placeholder="Nome..."
-                        className="bg-secondary border-border"
-                        autoFocus
-                      />
-                    </div>
-                  )}
+                    <Button type="submit"
+                      disabled={addingPlayer || (addMode === 'existing' && !selectedPlayerId)}
+                      className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold text-base">
+                      {addingPlayer ? 'Adicionando...' : 'Adicionar'}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
-                  <div className="text-xs text-muted-foreground bg-secondary/40 rounded p-2">
-                    Buy-in inicial: <span className="text-gold font-mono-numbers">R$ 25,00</span>
-                    {' '}(R$ 20 pote + R$ 5 caixa)
-                  </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClose}
+                disabled={closing || !isBalanced}
+                title={!isBalanced ? 'Feche o pote antes de encerrar a sessão' : undefined}
+                className={cn(
+                  isBalanced
+                    ? 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
+                    : 'border-border/30 text-muted-foreground cursor-not-allowed opacity-50'
+                )}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {closing ? 'Encerrando...' : 'Encerrar'}
+              </Button>
+            </div>
+          )}
 
-                  <Button
-                    type="submit"
-                    disabled={addingPlayer || (addMode === 'existing' && !selectedPlayerId)}
-                    className="w-full bg-gold text-felt hover:bg-gold/90 font-semibold"
-                  >
-                    {addingPlayer ? 'Adicionando...' : 'Adicionar'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCloseSession}
-              disabled={closing}
-              className="border-green-500/30 text-green-400 hover:bg-green-500/10"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              {closing ? 'Encerrando...' : 'Encerrar Sessão'}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Stats summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Jogadores', value: session.session_players.length },
-          { label: 'Total Compras', value: formatBRL(totalPot) },
-          { label: 'Total Pago', value: formatBRL(totalPaid) },
-          { label: 'Contribuição Caixa', value: formatBRL(totalCaixa) },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-lg gold-border bg-card p-3">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="font-mono-numbers font-semibold text-foreground mt-0.5">{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Players table */}
-      {session.session_players.length === 0 ? (
-        <div className="rounded-lg gold-border bg-card p-12 text-center text-muted-foreground">
-          Nenhum jogador nesta sessão ainda.
-        </div>
-      ) : (
-        <div className="rounded-lg gold-border gold-glow overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50">
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Jogador</th>
-                <th className="text-center px-4 py-3 text-muted-foreground font-medium">Buy-ins</th>
-                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Compra</th>
-                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Ganho</th>
-                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Saldo</th>
-                {isAdmin && <th className="px-4 py-3" />}
-              </tr>
-            </thead>
-            <tbody>
+          {/* Player cards */}
+          {session.session_players.length === 0 ? (
+            <div className="rounded-lg card-border bg-card p-10 text-center text-muted-foreground text-sm">
+              Nenhum jogador nesta sessão.
+            </div>
+          ) : (
+            <div className="rounded-lg card-border bg-card divide-y divide-border/50">
               {session.session_players.map((sp) => {
                 const saldo = Number(sp.soma_ganho) - Number(sp.soma_compra)
                 return (
-                  <tr key={sp.id} className="border-b border-border/20 hover:bg-white/3 transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {sp.players?.name}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Badge variant="secondary" className="font-mono text-xs bg-secondary/60">
-                        {sp.buyin_count}×
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono-numbers text-muted-foreground">
-                      {formatBRL(Number(sp.soma_compra))}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono-numbers">
-                      {formatBRL(Number(sp.soma_ganho))}
-                    </td>
-                    <td className={cn(
-                      'px-4 py-3 text-right font-mono-numbers font-semibold',
-                      saldo > 0 ? 'positive' : saldo < 0 ? 'negative' : 'text-muted-foreground'
-                    )}>
-                      {formatBRL(saldo)}
-                    </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {!session.is_closed && (
-                            <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} />
-                          )}
-                          {!session.is_closed && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleRemovePlayer(sp.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
+                  <div key={sp.id} className="px-4 py-4 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground text-sm">{sp.players?.name}</span>
+                        <span className="font-mono-numbers text-xs bg-white/5 rounded px-1.5 py-0.5 text-muted-foreground">
+                          {sp.buyin_count}×
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span>compra {formatBRL(Number(sp.soma_compra))}</span>
+                        {sp.soma_ganho > 0 && <span>ganho {formatBRL(Number(sp.soma_ganho))}</span>}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={cn(
+                        'font-mono-numbers font-semibold text-sm min-w-[60px] text-right',
+                        saldo > 0 ? 'positive' : saldo < 0 ? 'negative' : 'text-muted-foreground'
+                      )}>
+                        {formatBRL(saldo)}
+                      </span>
+                      {isAdmin && (status === 'active' || status === 'closed') && (
+                        <>
+                          <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} />
+                          {status === 'active' && (
+                            <Button variant="ghost" size="icon"
+                              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleRemovePlayer(sp.id)}>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+
+              {status === 'closed' && totalGanho > 0 && (
+                <div className="px-4 py-3 flex items-center justify-between bg-white/2">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Total ganho</span>
+                  <span className="font-mono-numbers font-semibold text-sm text-foreground">{formatBRL(totalGanho)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
