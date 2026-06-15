@@ -211,46 +211,36 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
             <div className="p-5 space-y-4">
               {/* Config bar */}
               <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs bg-secondary/40 rounded-lg px-3 py-2.5">
-                <div>
-                  <span className="text-muted-foreground">
-                    Freq. mín.{" "}
-                    <strong className="text-foreground">
-                      {previsao.min_freq}%
-                    </strong>
-                  </span>
-                  <span className="text-border hidden sm:inline">·</span>
-                  <span className="text-muted-foreground">
-                    Top{" "}
-                    <strong className="text-foreground">
-                      {previsao.placements}
-                    </strong>
-                  </span>
-                  <span className="text-border hidden sm:inline">·</span>
-                  <span className="font-mono-numbers text-muted-foreground">
-                    {previsao.percentages.map((p) => `${p}%`).join(" / ")}
-                  </span>
-                  <span className="ml-auto">
-                    <span className="text-muted-foreground">total </span>
-                    <strong
-                      className={cn(
-                        "font-mono-numbers",
-                        totalConfigPct === 100
-                          ? "text-emerald-400"
-                          : "text-yellow-500",
-                      )}
-                    >
-                      {totalConfigPct}%
-                    </strong>
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">
-                    <strong className="text-foreground">
-                      Valores sofrem alterações conforme entradas/saídas no
-                      caixa.
-                    </strong>
-                  </span>
-                </div>
+                <span className="text-muted-foreground">
+                  Freq. mín.{" "}
+                  <strong className="text-foreground">
+                    {previsao.min_freq}%
+                  </strong>
+                </span>
+                <span className="text-border hidden sm:inline">·</span>
+                <span className="text-muted-foreground">
+                  Top{" "}
+                  <strong className="text-foreground">
+                    {previsao.placements}
+                  </strong>
+                </span>
+                <span className="text-border hidden sm:inline">·</span>
+                <span className="font-mono-numbers text-muted-foreground">
+                  {previsao.percentages.map((p) => `${p}%`).join(" / ")}
+                </span>
+                <span className="ml-auto">
+                  <span className="text-muted-foreground">total </span>
+                  <strong
+                    className={cn(
+                      "font-mono-numbers",
+                      totalConfigPct === 100
+                        ? "text-emerald-400"
+                        : "text-yellow-500",
+                    )}
+                  >
+                    {totalConfigPct}%
+                  </strong>
+                </span>
               </div>
 
               {/* Qualifiers */}
