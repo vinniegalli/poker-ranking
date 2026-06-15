@@ -10,7 +10,7 @@ const AdminModal = dynamic(() => import('@/components/AdminModal').then(m => ({ 
   loading: () => <div className="h-10 w-10" />,
 })
 
-const links = [
+const desktopLinks = [
   { href: '/', label: 'Ranking' },
   { href: '/sessoes', label: 'Sessões' },
   { href: '/info', label: 'Info' },
@@ -26,13 +26,14 @@ export function Navbar() {
           <span className="text-foreground">STACK</span><span className="text-gold">S</span>
         </Link>
 
-        <nav className="flex items-center gap-0.5">
-          {links.map(({ href, label }) => (
+        {/* Desktop nav links — hidden on mobile */}
+        <nav className="hidden sm:flex items-center gap-0.5">
+          {desktopLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               className={cn(
-                'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] flex items-center',
+                'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 pathname === href || (href !== '/' && (pathname?.startsWith(href) ?? false))
                   ? 'text-foreground bg-white/6'
                   : 'text-muted-foreground hover:text-foreground hover:bg-white/4'
@@ -45,6 +46,11 @@ export function Navbar() {
             <AdminModal />
           </div>
         </nav>
+
+        {/* Mobile: just admin button */}
+        <div className="sm:hidden">
+          <AdminModal />
+        </div>
       </div>
     </header>
   )

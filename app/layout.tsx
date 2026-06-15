@@ -9,6 +9,10 @@ const Navbar = dynamic(() => import('@/components/Navbar').then(m => ({ default:
   ),
 });
 
+const BottomNav = dynamic(() => import('@/components/BottomNav').then(m => ({ default: m.BottomNav })), {
+  ssr: false,
+});
+
 const Toaster = dynamic(() => import('@/components/ui/toaster').then(m => ({ default: m.Toaster })), {
   ssr: false,
 });
@@ -27,7 +31,9 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body className="antialiased">
         <Navbar />
-        <main className="min-h-screen">{children}</main>
+        {/* pb-24 on mobile gives room above the bottom nav tab bar */}
+        <main className="min-h-screen pb-24 sm:pb-0">{children}</main>
+        <BottomNav />
         <Toaster />
       </body>
     </html>
