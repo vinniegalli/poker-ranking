@@ -42,6 +42,14 @@ export interface CaixaSaida {
   created_at: string
 }
 
+export interface CaixaEntrada {
+  id: string
+  description: string
+  amount: number
+  date: string
+  created_at: string
+}
+
 export interface RankingRow {
   player_id: string
   name: string

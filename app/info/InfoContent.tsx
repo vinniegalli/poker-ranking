@@ -5,6 +5,7 @@ import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { QuadraDoMes } from '@/components/QuadraDoMes'
 import { Pencil, Check, X } from 'lucide-react'
 
 const DEFAULTS = {
@@ -135,6 +136,10 @@ export default function InfoContent() {
           Use linhas em branco para separar parágrafos.
         </p>
       )}
+
+      <div className="mt-8">
+        <QuadraDoMes />
+      </div>
     </div>
   )
 }

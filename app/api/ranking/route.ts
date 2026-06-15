@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       players(name),
       sessions!inner(date, is_closed)
     `)
+    .eq('sessions.is_closed', true)
 
   if (year) {
     query = query
