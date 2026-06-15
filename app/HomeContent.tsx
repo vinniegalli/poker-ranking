@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { RankingTable } from '@/components/RankingTable'
-import { RankingChart } from '@/components/RankingChart'
+import { PrevisaoSection } from '@/components/PrevisaoSection'
 import { CaixaWidget } from '@/components/CaixaWidget'
 import { StatsSection } from '@/components/StatsSection'
 import { PremiacoesSection } from '@/components/PremiacoesSection'
@@ -102,7 +102,11 @@ export default function HomePage() {
         ) : (
           <>
             <RankingTable data={ranking} />
-            <RankingChart year={selectedYear !== 'all' ? selectedYear : undefined} />
+            <PrevisaoSection
+              ranking={ranking}
+              caixaTotal={caixaTotal}
+              year={selectedYear !== 'all' ? selectedYear : undefined}
+            />
           </>
         )}
 
