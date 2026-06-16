@@ -35,7 +35,7 @@
   }
   html, body {
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior-y: contain;
   }
   body {
@@ -43,7 +43,6 @@
     font-family: 'DM Sans', sans-serif;
     min-height: 100dvh;
     -webkit-text-size-adjust: 100%;
-    -webkit-overflow-scrolling: touch;
   }
   h1, h2, h3 {
     font-family: 'Syne', sans-serif;
