@@ -21,6 +21,7 @@ export interface SessionPlayer {
   soma_compra: number
   soma_ganho: number
   caixa_contribution: number
+  is_paid?: boolean
   created_at: string
   players?: Player
   sessions?: Session

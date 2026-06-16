@@ -140,6 +140,16 @@ export default function SessionDetailPage() {
     else toast({ title: 'Erro ao remover', variant: 'destructive' })
   }
 
+  async function handleTogglePaid(spId: string, currentPaid: boolean) {
+    const res = await fetch(`/api/sessions/${id}/players/${spId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_paid: !currentPaid }),
+    })
+    if (res.ok) fetchSession()
+    else toast({ title: 'Erro ao atualizar pagamento', variant: 'destructive' })
+  }
+
   function copyInviteLink() {
     const url = `${window.location.origin}/sessoes/${id}/confirmar`
     navigator.clipboard.writeText(url).then(() => {
@@ -484,6 +494,7 @@ export default function SessionDetailPage() {
             <div className="rounded-lg card-border bg-card divide-y divide-border/50">
               {session.session_players.map((sp) => {
                 const saldo = Number(sp.soma_ganho) - Number(sp.soma_compra)
+                const isPaid = sp.is_paid ?? false
                 return (
                   <div key={sp.id} className="px-4 py-4 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
@@ -492,6 +503,11 @@ export default function SessionDetailPage() {
                         <span className="font-mono-numbers text-xs bg-white/5 rounded px-1.5 py-0.5 text-muted-foreground">
                           {sp.buyin_count}×
                         </span>
+                        {status === 'closed' && saldo > 0 && isPaid && (
+                          <span className="text-xs text-emerald-400 flex items-center gap-0.5">
+                            <CheckCircle2 className="h-3 w-3" /> Pago
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span>compra {formatBRL(Number(sp.soma_compra))}</span>
@@ -506,6 +522,21 @@ export default function SessionDetailPage() {
                       )}>
                         {formatBRL(saldo)}
                       </span>
+                      {isAdmin && status === 'closed' && saldo > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleTogglePaid(sp.id, isPaid)}
+                          className={cn(
+                            'h-8 px-2 text-xs font-medium transition-colors',
+                            isPaid
+                              ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-white/5 border border-border/50'
+                          )}
+                        >
+                          {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : 'Pagar'}
+                        </Button>
+                      )}
                       {isAdmin && (status === 'active' || status === 'closed') && (
                         <>
                           <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} />

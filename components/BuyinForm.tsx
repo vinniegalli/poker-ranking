@@ -23,12 +23,19 @@ interface BuyinFormProps {
   onUpdate: () => void
 }
 
+function parseMoneyStr(s: string): number {
+  return parseFloat(s.replace(',', '.')) || 0
+}
+
 export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
   const { isAdmin } = useAdmin()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [buyinCount, setBuyinCount] = useState(sessionPlayer.buyin_count)
   const [somaGanho, setSomaGanho] = useState(sessionPlayer.soma_ganho)
+  const [ganhoStr, setGanhoStr] = useState(
+    sessionPlayer.soma_ganho > 0 ? String(sessionPlayer.soma_ganho).replace('.', ',') : ''
+  )
   const [loading, setLoading] = useState(false)
 
   if (!isAdmin) return null
@@ -53,14 +60,15 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
 
   const somaCompra = calcSomaCompra(buyinCount)
   const totalPago = calcTotalPago(buyinCount)
-  // saldo = ganho - compra no pote (caixa é separado e não entra)
   const saldo = somaGanho - somaCompra
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
       if (v) {
         setBuyinCount(sessionPlayer.buyin_count)
-        setSomaGanho(sessionPlayer.soma_ganho)
+        const g = sessionPlayer.soma_ganho
+        setSomaGanho(g)
+        setGanhoStr(g > 0 ? String(g).replace('.', ',') : '')
       }
       setOpen(v)
     }}>
@@ -83,7 +91,7 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
         </DialogHeader>
 
         <div className="space-y-6 pt-1">
-          {/* Buy-in counter — botões grandes para mobile */}
+          {/* Buy-in counter */}
           <div>
             <p className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Buy-ins</p>
             <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-2 py-3">
@@ -116,19 +124,26 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
             </div>
           </div>
 
-          {/* Ganho */}
+          {/* Ganho — type="text" para aceitar vírgula no Android */}
           <div className="space-y-2">
             <Label htmlFor="ganho" className="text-muted-foreground text-xs uppercase tracking-wider">
               Valor ganho (R$)
             </Label>
             <Input
               id="ganho"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0"
-              value={somaGanho || ''}
-              onChange={(e) => setSomaGanho(parseFloat(e.target.value) || 0)}
+              value={ganhoStr}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9.,]/g, '')
+                setGanhoStr(raw)
+                setSomaGanho(parseMoneyStr(raw))
+              }}
+              onBlur={() => {
+                const v = parseMoneyStr(ganhoStr)
+                setSomaGanho(v)
+                setGanhoStr(v > 0 ? String(v).replace('.', ',') : '')
+              }}
               className="bg-secondary border-border font-mono-numbers text-base h-12"
               placeholder="0,00"
             />

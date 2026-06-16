@@ -7,13 +7,15 @@ export async function PATCH(
 ) {
   const body = await req.json()
 
+  const patch: Record<string, unknown> = {}
+  if (body.buyin_count !== undefined) patch.buyin_count = body.buyin_count
+  if (body.soma_compra !== undefined) patch.soma_compra = body.soma_compra
+  if (body.soma_ganho !== undefined) patch.soma_ganho = body.soma_ganho
+  if (body.is_paid !== undefined) patch.is_paid = body.is_paid
+
   const { data, error } = await supabase
     .from('session_players')
-    .update({
-      buyin_count: body.buyin_count,
-      soma_compra: body.soma_compra,
-      soma_ganho: body.soma_ganho,
-    })
+    .update(patch)
     .eq('id', params.playerId)
     .eq('session_id', params.id)
     .select('*, players(*)')
