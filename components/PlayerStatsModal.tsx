@@ -7,18 +7,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { formatBRL } from '@/lib/calculations'
-import { Badge, BadgeTheme } from '@/lib/badges'
+import { Badge } from '@/lib/badges'
+import { badgeChipClass } from '@/lib/badge-styles'
 import { RankingRow } from '@/types'
 import { cn } from '@/lib/utils'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-
-const THEME_STYLES: Record<BadgeTheme, string> = {
-  sequencia: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  estilo: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  recorde: 'bg-gold/10 text-gold border-gold/20',
-  participacao: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  premio: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
-}
 
 interface PlayerStats {
   participacoes: number
@@ -147,8 +140,8 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
                         onClick={() => setActiveBadgeId((cur) => (cur === b.id ? null : b.id))}
                         onMouseEnter={() => setActiveBadgeId(b.id)}
                         className={cn(
-                          'h-10 w-10 rounded-full border flex items-center justify-center text-lg transition-transform',
-                          THEME_STYLES[b.theme],
+                          'h-10 w-10 rounded-full flex items-center justify-center text-lg transition-transform',
+                          badgeChipClass(b),
                           activeBadgeId === b.id ? 'ring-2 ring-gold scale-110' : 'hover:scale-105'
                         )}
                       >
@@ -161,7 +154,10 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
                     if (!active) return null
                     return (
                       <p className="text-xs text-foreground/80 mt-3 pt-3 border-t border-border/30">
-                        <span className="font-medium text-foreground">{active.icon} {active.label}</span>
+                        <span className="font-medium text-foreground">
+                          {active.icon} {active.label}
+                          {active.tier && ` (${active.tier})`}
+                        </span>
                         {' — '}{active.description}
                       </p>
                     )

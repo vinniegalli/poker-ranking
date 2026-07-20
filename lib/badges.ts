@@ -1,6 +1,7 @@
 import { calcCurrentLosingStreak, calcCurrentStreak } from './calculations'
 
 export type BadgeTheme = 'sequencia' | 'estilo' | 'recorde' | 'participacao' | 'premio'
+export type BadgeTier = 'bronze' | 'prata' | 'ouro'
 
 export interface Badge {
   id: string
@@ -8,6 +9,7 @@ export interface Badge {
   label: string
   description: string
   theme: BadgeTheme
+  tier?: BadgeTier
 }
 
 export interface PlayerSessionRow {
@@ -19,12 +21,32 @@ export interface PlayerSessionRow {
   soma_ganho: number
 }
 
+interface Level {
+  min: number
+  tier: BadgeTier
+}
+
 const MIN_SESSIONS_FOR_STYLE = 5
 const SEMPRE_POR_PERTO_THRESHOLD = 0.8
 const ISCA_MIN_BUYINS = 4
-const VETERANO_LEVELS = [50, 25, 10] // do maior pro menor, pra reportar o nível mais alto atingido
-const GANHO_LEVELS = [100, 70, 50, 20, 10] // do maior pro menor, pra reportar o maior ganho de sessão atingido
-const PERDA_LEVELS = [100, 70, 50, 20, 10] // idem, pra maior perda de sessão
+const VIRADA_MIN_BUYINS = 3
+const CIRURGIAO_TOLERANCIA = 1 // R$
+
+// Todos em ordem do maior pro menor, pra reportar o nível mais alto atingido
+const VETERANO_LEVELS: Level[] = [{ min: 50, tier: 'ouro' }, { min: 25, tier: 'prata' }, { min: 10, tier: 'bronze' }]
+const GANHO_LEVELS: Level[] = [
+  { min: 100, tier: 'ouro' }, { min: 70, tier: 'prata' }, { min: 50, tier: 'prata' },
+  { min: 20, tier: 'bronze' }, { min: 10, tier: 'bronze' },
+]
+const PERDA_LEVELS: Level[] = GANHO_LEVELS
+const SALDO_TOTAL_LEVELS: Level[] = [{ min: 1000, tier: 'ouro' }, { min: 500, tier: 'prata' }, { min: 100, tier: 'bronze' }]
+const FIEL_LEVELS: Level[] = [{ min: 4, tier: 'ouro' }, { min: 3, tier: 'prata' }, { min: 2, tier: 'bronze' }]
+const ESTILO_RANK_TIERS: BadgeTier[] = ['ouro', 'prata', 'bronze'] // posição 1, 2, 3 no grupo
+const PODIO_META: Record<1 | 2 | 3, { label: string; icon: string; tier: BadgeTier }> = {
+  1: { label: 'Rei do ranking', icon: '👑', tier: 'ouro' },
+  2: { label: 'Vice-campeão', icon: '🥈', tier: 'prata' },
+  3: { label: '3º lugar no ranking', icon: '🥉', tier: 'bronze' },
+}
 
 function stddev(values: number[]): number {
   if (values.length === 0) return 0
@@ -46,7 +68,7 @@ export function computeBadges(
     byPlayer.get(row.player_id)!.sessions.push({ date: row.date, saldo, buyin_count: row.buyin_count })
   }
 
-  // Rei do ranking: maior soma de saldo por ano
+  // Pódio do ranking por ano: top 3 por soma de saldo
   const yearTotals = new Map<string, Map<string, number>>()
   const yearParticipation = new Map<string, Map<string, number>>()
   const yearSessionDates = new Map<string, Set<string>>()
@@ -68,20 +90,21 @@ export function computeBadges(
     }
   }
 
-  const kingYearsByPlayer = new Map<string, string[]>()
+  const podiumByPlayer = new Map<string, { position: 1 | 2 | 3; years: string[] }>()
   for (const [year, totals] of yearTotals) {
-    let bestPid: string | null = null
-    let bestValue = -Infinity
-    for (const [pid, total] of totals) {
-      if (total > bestValue) { bestValue = total; bestPid = pid }
-    }
-    if (bestPid) {
-      if (!kingYearsByPlayer.has(bestPid)) kingYearsByPlayer.set(bestPid, [])
-      kingYearsByPlayer.get(bestPid)!.push(year)
-    }
+    const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+    sorted.forEach(([pid], idx) => {
+      const position = (idx + 1) as 1 | 2 | 3
+      const existing = podiumByPlayer.get(pid)
+      if (!existing || position < existing.position) {
+        podiumByPlayer.set(pid, { position, years: [year] })
+      } else if (position === existing.position) {
+        existing.years.push(year)
+      }
+    })
   }
 
-  // Títulos de estilo (comparativos, exigem amostra mínima)
+  // Títulos de estilo (comparativos, top 3 do grupo, exigem amostra mínima)
   const eligible = [...byPlayer.entries()].filter(([, d]) => d.sessions.length >= MIN_SESSIONS_FOR_STYLE)
   const styleStats = eligible.map(([pid, d]) => {
     const saldos = d.sessions.map((s) => s.saldo)
@@ -89,14 +112,15 @@ export function computeBadges(
     return { pid, stddev: stddev(saldos), winRate }
   })
 
-  const minStddev = styleStats.length ? Math.min(...styleStats.map((s) => s.stddev)) : null
-  const maxStddev = styleStats.length ? Math.max(...styleStats.map((s) => s.stddev)) : null
-  const maxWinRate = styleStats.length ? Math.max(...styleStats.map((s) => s.winRate)) : null
-
-  const rochaHolders = new Set(styleStats.filter((s) => s.stddev === minStddev).map((s) => s.pid))
-  const montanhaRussaHolders = new Set(styleStats.filter((s) => s.stddev === maxStddev).map((s) => s.pid))
-  const sharkHolders = new Set(
-    styleStats.filter((s) => maxWinRate !== null && maxWinRate > 0 && s.winRate === maxWinRate).map((s) => s.pid)
+  const rochaTier = new Map(
+    [...styleStats].sort((a, b) => a.stddev - b.stddev).slice(0, 3).map((s, i) => [s.pid, ESTILO_RANK_TIERS[i]])
+  )
+  const montanhaRussaTier = new Map(
+    [...styleStats].sort((a, b) => b.stddev - a.stddev).slice(0, 3).map((s, i) => [s.pid, ESTILO_RANK_TIERS[i]])
+  )
+  const sharkTier = new Map(
+    [...styleStats].filter((s) => s.winRate > 0).sort((a, b) => b.winRate - a.winRate).slice(0, 3)
+      .map((s, i) => [s.pid, ESTILO_RANK_TIERS[i]])
   )
 
   const result = new Map<string, Badge[]>()
@@ -113,14 +137,14 @@ export function computeBadges(
       badges.push({ id: 'fase_ruim', icon: '🧊', label: 'Fase ruim', description: '3+ derrotas seguidas', theme: 'sequencia' })
     }
 
-    if (rochaHolders.has(pid)) {
-      badges.push({ id: 'rocha', icon: '🪨', label: 'Rocha', description: 'O jogador mais consistente do grupo', theme: 'estilo' })
+    if (rochaTier.has(pid)) {
+      badges.push({ id: 'rocha', icon: '🪨', label: 'Rocha', description: 'Top 3 mais consistentes do grupo', theme: 'estilo', tier: rochaTier.get(pid) })
     }
-    if (montanhaRussaHolders.has(pid)) {
-      badges.push({ id: 'montanha_russa', icon: '🎢', label: 'Montanha-russa', description: 'O jogador mais instável do grupo', theme: 'estilo' })
+    if (montanhaRussaTier.has(pid)) {
+      badges.push({ id: 'montanha_russa', icon: '🎢', label: 'Montanha-russa', description: 'Top 3 mais instáveis do grupo', theme: 'estilo', tier: montanhaRussaTier.get(pid) })
     }
-    if (sharkHolders.has(pid)) {
-      badges.push({ id: 'shark', icon: '🦈', label: 'Shark', description: 'Maior taxa de vitória do grupo', theme: 'estilo' })
+    if (sharkTier.has(pid)) {
+      badges.push({ id: 'shark', icon: '🦈', label: 'Shark', description: 'Top 3 em taxa de vitória do grupo', theme: 'estilo', tier: sharkTier.get(pid) })
     }
     if (sessions.some((s) => s.buyin_count >= ISCA_MIN_BUYINS && s.saldo < 0)) {
       badges.push({
@@ -131,39 +155,74 @@ export function computeBadges(
         theme: 'estilo',
       })
     }
+    if (sessions.some((s) => s.buyin_count >= VIRADA_MIN_BUYINS && s.saldo > 0)) {
+      badges.push({
+        id: 'virada',
+        icon: '🔄',
+        label: 'Virada',
+        description: `Comprou ${VIRADA_MIN_BUYINS}+ fichas numa noite e mesmo assim terminou no azul`,
+        theme: 'estilo',
+      })
+    }
+    if (sessions.some((s) => Math.abs(s.saldo) <= CIRURGIAO_TOLERANCIA)) {
+      badges.push({
+        id: 'cirurgiao',
+        icon: '🔬',
+        label: 'Cirurgião',
+        description: `Terminou uma sessão a menos de R$${CIRURGIAO_TOLERANCIA} do zero a zero`,
+        theme: 'estilo',
+      })
+    }
 
     const melhorSaldo = Math.max(...sessions.map((s) => s.saldo))
-    const ganhoLevel = GANHO_LEVELS.find((lvl) => melhorSaldo >= lvl)
+    const ganhoLevel = GANHO_LEVELS.find((lvl) => melhorSaldo >= lvl.min)
     if (ganhoLevel) {
       badges.push({
         id: 'grande_vitoria',
         icon: '💰',
-        label: `Ganhou R$${ganhoLevel}+`,
+        label: `Ganhou R$${ganhoLevel.min}+`,
         description: `Melhor sessão pessoal: +R$${melhorSaldo.toFixed(2)} numa única noite`,
         theme: 'recorde',
+        tier: ganhoLevel.tier,
       })
     }
 
     const piorSaldo = Math.min(...sessions.map((s) => s.saldo))
-    const perdaLevel = PERDA_LEVELS.find((lvl) => piorSaldo <= -lvl)
+    const perdaLevel = PERDA_LEVELS.find((lvl) => piorSaldo <= -lvl.min)
     if (perdaLevel) {
       badges.push({
         id: 'grande_perda',
         icon: '💀',
-        label: `Perdeu R$${perdaLevel}+`,
+        label: `Perdeu R$${perdaLevel.min}+`,
         description: `Pior sessão pessoal: -R$${Math.abs(piorSaldo).toFixed(2)} numa única noite`,
         theme: 'recorde',
+        tier: perdaLevel.tier,
       })
     }
 
-    const kingYears = kingYearsByPlayer.get(pid)
-    if (kingYears?.length) {
+    const somaSaldoTotal = sessions.reduce((s, x) => s + x.saldo, 0)
+    const marcoLevel = SALDO_TOTAL_LEVELS.find((lvl) => somaSaldoTotal >= lvl.min)
+    if (marcoLevel) {
       badges.push({
-        id: 'rei_do_ranking',
-        icon: '👑',
-        label: 'Rei do ranking',
-        description: `1º lugar no ranking de ${[...kingYears].sort().join(', ')}`,
+        id: 'marco_saldo',
+        icon: '💎',
+        label: `R$${marcoLevel.min}+ acumulados`,
+        description: `Saldo total na carreira: R$${somaSaldoTotal.toFixed(2)}`,
         theme: 'recorde',
+        tier: marcoLevel.tier,
+      })
+    }
+
+    const podium = podiumByPlayer.get(pid)
+    if (podium) {
+      const meta = PODIO_META[podium.position]
+      badges.push({
+        id: 'podio_do_ano',
+        icon: meta.icon,
+        label: meta.label,
+        description: `${podium.position}º lugar no ranking de ${[...podium.years].sort().join(', ')}`,
+        theme: 'recorde',
+        tier: meta.tier,
       })
     }
 
@@ -182,16 +241,31 @@ export function computeBadges(
       }
     }
 
-    const veteranoLevel = VETERANO_LEVELS.find((lvl) => participacoes >= lvl)
+    const veteranoLevel = VETERANO_LEVELS.find((lvl) => participacoes >= lvl.min)
     if (veteranoLevel) {
       badges.push({
         id: 'veterano',
         icon: '🎖️',
         label: 'Veterano',
-        description: `${veteranoLevel}+ sessões jogadas`,
+        description: `${veteranoLevel.min}+ sessões jogadas`,
         theme: 'participacao',
+        tier: veteranoLevel.tier,
       })
     }
+
+    const yearsPlayed = new Set(sessions.map((s) => s.date.slice(0, 4)))
+    const fielLevel = FIEL_LEVELS.find((lvl) => yearsPlayed.size >= lvl.min)
+    if (fielLevel) {
+      badges.push({
+        id: 'fiel',
+        icon: '📅',
+        label: 'Fiel',
+        description: `Jogou em ${yearsPlayed.size} anos diferentes`,
+        theme: 'participacao',
+        tier: fielLevel.tier,
+      })
+    }
+
     if (participacoes >= 1) {
       badges.push({ id: 'estreante', icon: '🐣', label: 'Estreante', description: 'Primeira sessão registrada', theme: 'participacao' })
     }

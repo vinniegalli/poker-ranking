@@ -7,17 +7,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { formatBRL } from '@/lib/calculations'
-import { Badge, BadgeTheme } from '@/lib/badges'
+import { Badge } from '@/lib/badges'
+import { badgeChipClass } from '@/lib/badge-styles'
 import { cn } from '@/lib/utils'
 import { Trophy, ArrowUp, ArrowDown, Minus, Sparkles } from 'lucide-react'
-
-const THEME_STYLES: Record<BadgeTheme, string> = {
-  sequencia: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  estilo: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  recorde: 'bg-gold/10 text-gold border-gold/20',
-  participacao: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  premio: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
-}
 
 interface RecapPlayer {
   player_id: string
@@ -132,10 +125,10 @@ export function SessionRecapModal({ sessionId, open, onClose }: SessionRecapModa
                           {p.newBadges.map((b) => (
                             <span
                               key={b.id}
-                              title={`${b.label} — ${b.description}`}
+                              title={`${b.label}${b.tier ? ` (${b.tier})` : ''} — ${b.description}`}
                               className={cn(
-                                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
-                                THEME_STYLES[b.theme]
+                                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                                badgeChipClass(b)
                               )}
                             >
                               <Sparkles className="h-2.5 w-2.5" />
