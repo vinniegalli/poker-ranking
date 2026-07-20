@@ -73,6 +73,17 @@ export function calcBestStreak(sessions: SessionResult[]): number {
   return best
 }
 
+/** Sequência atual: sessões mais recentes consecutivas com saldo negativo */
+export function calcCurrentLosingStreak(sessions: SessionResult[]): number {
+  const sorted = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
+  let streak = 0
+  for (const s of sorted) {
+    if (s.saldo < 0) streak++
+    else break
+  }
+  return streak
+}
+
 /** Valor em R$ que corresponde a uma porcentagem do caixa, arredondado a centavos */
 export function calcPremioAmount(pct: number, caixaTotal: number): number {
   return Math.round((pct / 100) * caixaTotal * 100) / 100
