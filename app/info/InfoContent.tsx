@@ -5,12 +5,16 @@ import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { QuadraDoMes } from '@/components/QuadraDoMes'
 import { Pencil, Check, X } from 'lucide-react'
 
 const DEFAULTS = {
   info_title: 'Regras e Informações',
   info_content: 'Buy-in: R$ 25,00 (R$ 20 pote + R$ 5 caixa)\nRe-buy: R$ 20,00\nMáximo 10 jogadores por mesa\n\nO caixa acumulado é distribuído ao final do ano.',
+  pix_key: '',
+  pix_nome: '',
+  pix_cidade: '',
 }
 
 export default function InfoContent() {
@@ -135,6 +139,51 @@ export default function InfoContent() {
         <p className="text-xs text-muted-foreground mt-3 px-1">
           Use linhas em branco para separar parágrafos.
         </p>
+      )}
+
+      {isAdmin && (
+        <div className="rounded-xl card-border bg-card p-5 mt-6">
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium mb-3">
+            Configuração Pix (admin)
+          </p>
+          {editing ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave Pix</Label>
+                <Input
+                  value={draft.pix_key}
+                  onChange={(e) => setDraft((d) => ({ ...d, pix_key: e.target.value }))}
+                  placeholder="CPF, e-mail, telefone ou chave aleatória"
+                  className="bg-secondary border-border h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome do recebedor</Label>
+                <Input
+                  value={draft.pix_nome}
+                  onChange={(e) => setDraft((d) => ({ ...d, pix_nome: e.target.value }))}
+                  placeholder="Nome que aparece pro pagador"
+                  className="bg-secondary border-border h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Cidade</Label>
+                <Input
+                  value={draft.pix_cidade}
+                  onChange={(e) => setDraft((d) => ({ ...d, pix_cidade: e.target.value }))}
+                  placeholder="Cidade do recebedor"
+                  className="bg-secondary border-border h-11"
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {config.pix_key
+                ? `Chave: ${config.pix_key} · ${config.pix_nome} · ${config.pix_cidade}`
+                : 'Nenhuma chave Pix configurada ainda — clique em editar para adicionar.'}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="mt-8">

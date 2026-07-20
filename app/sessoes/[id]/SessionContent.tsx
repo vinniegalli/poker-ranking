@@ -20,6 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { BuyinForm } from '@/components/BuyinForm'
+import { PixPayButton } from '@/components/PixPayButton'
 import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { SessionWithPlayers, Player } from '@/types'
@@ -45,9 +46,10 @@ export default function SessionDetailPage() {
   const [reopening, setReopening] = useState(false)
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [pixConfig, setPixConfig] = useState({ pix_key: '', pix_nome: '', pix_cidade: '' })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchSession(); fetchPlayers() }, [id])
+  useEffect(() => { fetchSession(); fetchPlayers(); fetchPixConfig() }, [id])
 
   async function fetchSession() {
     const res = await fetch(`/api/sessions/${id}`)
@@ -60,6 +62,12 @@ export default function SessionDetailPage() {
     const res = await fetch('/api/players')
     const data = await res.json()
     setPlayers(Array.isArray(data) ? data : [])
+  }
+
+  async function fetchPixConfig() {
+    const res = await fetch('/api/config')
+    const data = await res.json()
+    setPixConfig((c) => ({ ...c, ...data }))
   }
 
   async function patchSession(body: Record<string, unknown>) {
@@ -564,6 +572,15 @@ export default function SessionDetailPage() {
                         >
                           {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : (acertoFinal > 0 ? 'Pagar' : 'Cobrar')}
                         </Button>
+                      )}
+                      {faltaPagar > 0 && pixConfig.pix_key && (status === 'active' || status === 'closed') && (
+                        <PixPayButton
+                          amount={faltaPagar}
+                          playerName={sp.players?.name ?? ''}
+                          pixKey={pixConfig.pix_key}
+                          merchantName={pixConfig.pix_nome}
+                          merchantCity={pixConfig.pix_cidade}
+                        />
                       )}
                       {isAdmin && (status === 'active' || status === 'closed') && (
                         <>
