@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { QuadraDoMes } from '@/components/QuadraDoMes'
+import { BadgeLegend } from '@/components/BadgeLegend'
 import { Pencil, Check, X } from 'lucide-react'
 
 const DEFAULTS = {
@@ -138,6 +139,10 @@ export default function InfoContent() {
           Use linhas em branco para separar parágrafos.
         </p>
       )}
+
+      <div className="mt-6">
+        <BadgeLegend />
+      </div>
 
       {isAdmin && (
         <div className="rounded-xl card-border bg-card p-5 mt-6">

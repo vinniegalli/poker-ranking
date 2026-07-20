@@ -21,28 +21,34 @@ export interface PlayerSessionRow {
   soma_ganho: number
 }
 
-interface Level {
+export interface Level {
   min: number
   tier: BadgeTier
 }
 
-const MIN_SESSIONS_FOR_STYLE = 5
-const SEMPRE_POR_PERTO_THRESHOLD = 0.8
-const ISCA_MIN_BUYINS = 4
-const VIRADA_MIN_BUYINS = 3
-const CIRURGIAO_TOLERANCIA = 1 // R$
+export const STREAK_THRESHOLD = 3
+export const MIN_SESSIONS_FOR_STYLE = 5
+export const SEMPRE_POR_PERTO_THRESHOLD = 0.8
+export const ISCA_MIN_BUYINS = 4
+export const VIRADA_MIN_BUYINS = 3
+export const CIRURGIAO_TOLERANCIA = 1 // R$
 
 // Todos em ordem do maior pro menor, pra reportar o nível mais alto atingido
-const VETERANO_LEVELS: Level[] = [{ min: 50, tier: 'ouro' }, { min: 25, tier: 'prata' }, { min: 10, tier: 'bronze' }]
-const GANHO_LEVELS: Level[] = [
+export const VETERANO_LEVELS: Level[] = [{ min: 50, tier: 'ouro' }, { min: 25, tier: 'prata' }, { min: 10, tier: 'bronze' }]
+export const GANHO_LEVELS: Level[] = [
   { min: 100, tier: 'ouro' }, { min: 70, tier: 'prata' }, { min: 50, tier: 'prata' },
   { min: 20, tier: 'bronze' }, { min: 10, tier: 'bronze' },
 ]
-const PERDA_LEVELS: Level[] = GANHO_LEVELS
-const SALDO_TOTAL_LEVELS: Level[] = [{ min: 1000, tier: 'ouro' }, { min: 500, tier: 'prata' }, { min: 100, tier: 'bronze' }]
-const FIEL_LEVELS: Level[] = [{ min: 4, tier: 'ouro' }, { min: 3, tier: 'prata' }, { min: 2, tier: 'bronze' }]
+// Ordem de checagem continua do maior pro menor threshold (pra achar o pior resultado batido),
+// mas o tier é invertido — perder mais não é "melhor", então ouro é pra quem perdeu menos.
+export const PERDA_LEVELS: Level[] = [
+  { min: 100, tier: 'bronze' }, { min: 70, tier: 'bronze' }, { min: 50, tier: 'prata' },
+  { min: 20, tier: 'prata' }, { min: 10, tier: 'ouro' },
+]
+export const SALDO_TOTAL_LEVELS: Level[] = [{ min: 1000, tier: 'ouro' }, { min: 500, tier: 'prata' }, { min: 100, tier: 'bronze' }]
+export const FIEL_LEVELS: Level[] = [{ min: 4, tier: 'ouro' }, { min: 3, tier: 'prata' }, { min: 2, tier: 'bronze' }]
 const ESTILO_RANK_TIERS: BadgeTier[] = ['ouro', 'prata', 'bronze'] // posição 1, 2, 3 no grupo
-const PODIO_META: Record<1 | 2 | 3, { label: string; icon: string; tier: BadgeTier }> = {
+export const PODIO_META: Record<1 | 2 | 3, { label: string; icon: string; tier: BadgeTier }> = {
   1: { label: 'Rei do ranking', icon: '👑', tier: 'ouro' },
   2: { label: 'Vice-campeão', icon: '🥈', tier: 'prata' },
   3: { label: '3º lugar no ranking', icon: '🥉', tier: 'bronze' },
@@ -130,11 +136,11 @@ export function computeBadges(
     const sessions = data.sessions
     const participacoes = sessions.length
 
-    if (calcCurrentStreak(sessions) >= 3) {
-      badges.push({ id: 'em_chamas', icon: '🔥', label: 'Em chamas', description: '3+ vitórias seguidas', theme: 'sequencia' })
+    if (calcCurrentStreak(sessions) >= STREAK_THRESHOLD) {
+      badges.push({ id: 'em_chamas', icon: '🔥', label: 'Em chamas', description: `${STREAK_THRESHOLD}+ vitórias seguidas`, theme: 'sequencia' })
     }
-    if (calcCurrentLosingStreak(sessions) >= 3) {
-      badges.push({ id: 'fase_ruim', icon: '🧊', label: 'Fase ruim', description: '3+ derrotas seguidas', theme: 'sequencia' })
+    if (calcCurrentLosingStreak(sessions) >= STREAK_THRESHOLD) {
+      badges.push({ id: 'fase_ruim', icon: '🧊', label: 'Fase ruim', description: `${STREAK_THRESHOLD}+ derrotas seguidas`, theme: 'sequencia' })
     }
 
     if (rochaTier.has(pid)) {
