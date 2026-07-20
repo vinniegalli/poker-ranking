@@ -45,7 +45,7 @@ export const PERDA_LEVELS: Level[] = [
   { min: 100, tier: 'bronze' }, { min: 70, tier: 'bronze' }, { min: 50, tier: 'prata' },
   { min: 20, tier: 'prata' }, { min: 10, tier: 'ouro' },
 ]
-export const SALDO_TOTAL_LEVELS: Level[] = [{ min: 1000, tier: 'ouro' }, { min: 500, tier: 'prata' }, { min: 100, tier: 'bronze' }]
+export const SALDO_TOTAL_LEVELS: Level[] = [{ min: 500, tier: 'ouro' }, { min: 300, tier: 'prata' }, { min: 100, tier: 'bronze' }]
 export const FIEL_LEVELS: Level[] = [{ min: 4, tier: 'ouro' }, { min: 3, tier: 'prata' }, { min: 2, tier: 'bronze' }]
 const ESTILO_RANK_TIERS: BadgeTier[] = ['ouro', 'prata', 'bronze'] // posição 1, 2, 3 no grupo
 export const PODIO_META: Record<1 | 2 | 3, { label: string; icon: string; tier: BadgeTier }> = {
