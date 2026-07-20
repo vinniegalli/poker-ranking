@@ -18,6 +18,7 @@ export interface SessionPlayer {
   session_id: string
   player_id: string
   buyin_count: number
+  buyins_pagos: number
   soma_compra: number
   soma_ganho: number
   caixa_contribution: number

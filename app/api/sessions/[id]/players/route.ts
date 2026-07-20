@@ -45,6 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       session_id: params.id,
       player_id,
       buyin_count,
+      buyins_pagos: buyin_count,
       soma_compra,
       soma_ganho: 0,
       caixa_contribution,
@@ -53,6 +54,19 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Re-checa o limite após o insert: duas requisições concorrentes podem passar
+  // pelo check acima ao mesmo tempo, então a garantia real de não estourar o
+  // limite vem daqui.
+  const { count: finalCount, error: finalCountErr } = await supabase
+    .from('session_players')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', params.id)
+
+  if (!finalCountErr && (finalCount ?? 0) > MAX_PLAYERS) {
+    await supabase.from('session_players').delete().eq('id', data.id)
+    return NextResponse.json({ error: `Sessão lotada (máximo ${MAX_PLAYERS} jogadores)` }, { status: 400 })
+  }
 
   return NextResponse.json(data, { status: 201 })
 }

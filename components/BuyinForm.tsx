@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { useAdmin } from '@/hooks/use-admin'
 import { SessionPlayer, Player } from '@/types'
-import { calcSomaCompra, calcTotalPago, formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcSomaCompra, calcTotalPago, formatBRL } from '@/lib/calculations'
 import { useToast } from '@/hooks/use-toast'
 import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -23,8 +23,10 @@ interface BuyinFormProps {
   onUpdate: () => void
 }
 
+// Formato brasileiro: "." é separador de milhar, "," é separador decimal
 function parseMoneyStr(s: string): number {
-  return parseFloat(s.replace(',', '.')) || 0
+  const normalized = s.replace(/\./g, '').replace(',', '.')
+  return parseFloat(normalized) || 0
 }
 
 export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
@@ -32,6 +34,7 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [buyinCount, setBuyinCount] = useState(sessionPlayer.buyin_count)
+  const [buyinsPagos, setBuyinsPagos] = useState(sessionPlayer.buyins_pagos ?? sessionPlayer.buyin_count)
   const [somaGanho, setSomaGanho] = useState(sessionPlayer.soma_ganho)
   const [ganhoStr, setGanhoStr] = useState(
     sessionPlayer.soma_ganho > 0 ? String(sessionPlayer.soma_ganho).replace('.', ',') : ''
@@ -40,13 +43,26 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
 
   if (!isAdmin) return null
 
+  function incBuyin() {
+    setBuyinCount((c) => c + 1)
+    // Assume que a nova ficha foi paga na hora; admin pode corrigir depois.
+    setBuyinsPagos((p) => p + 1)
+  }
+
+  function decBuyin() {
+    setBuyinCount((c) => {
+      const next = Math.max(1, c - 1)
+      setBuyinsPagos((p) => Math.min(p, next))
+      return next
+    })
+  }
+
   async function handleSave() {
     setLoading(true)
-    const somaCompra = calcSomaCompra(buyinCount)
     const res = await fetch(`/api/sessions/${sessionPlayer.session_id}/players/${sessionPlayer.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ buyin_count: buyinCount, soma_ganho: somaGanho, soma_compra: somaCompra }),
+      body: JSON.stringify({ buyin_count: buyinCount, buyins_pagos: buyinsPagos, soma_ganho: somaGanho }),
     })
     setLoading(false)
     if (res.ok) {
@@ -60,12 +76,16 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
 
   const somaCompra = calcSomaCompra(buyinCount)
   const totalPago = calcTotalPago(buyinCount)
+  const valorPago = calcSomaCompra(buyinsPagos)
+  const faltaPagar = somaCompra - valorPago
   const saldo = somaGanho - somaCompra
+  const acertoFinal = calcAcertoFinal(somaCompra, somaGanho, buyinsPagos)
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
       if (v) {
         setBuyinCount(sessionPlayer.buyin_count)
+        setBuyinsPagos(sessionPlayer.buyins_pagos ?? sessionPlayer.buyin_count)
         const g = sessionPlayer.soma_ganho
         setSomaGanho(g)
         setGanhoStr(g > 0 ? String(g).replace('.', ',') : '')
@@ -98,7 +118,7 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setBuyinCount(Math.max(1, buyinCount - 1))}
+                onClick={decBuyin}
                 className="h-16 w-16 rounded-xl text-3xl font-bold text-foreground hover:bg-white/10 active:scale-95 transition-transform"
               >
                 −
@@ -116,12 +136,47 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setBuyinCount(buyinCount + 1)}
+                onClick={incBuyin}
                 className="h-16 w-16 rounded-xl text-3xl font-bold text-gold hover:bg-gold/10 active:scale-95 transition-transform"
               >
                 +
               </Button>
             </div>
+          </div>
+
+          {/* Compras pagas — quantas das fichas acima já foram pagas em dinheiro */}
+          <div>
+            <p className="text-muted-foreground text-xs uppercase tracking-wider mb-3">
+              Compras pagas
+            </p>
+            <div className="flex items-center justify-between bg-secondary/50 rounded-xl px-2 py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setBuyinsPagos((p) => Math.max(0, p - 1))}
+                className="h-10 w-10 rounded-lg text-xl font-bold text-foreground hover:bg-white/10 active:scale-95 transition-transform"
+              >
+                −
+              </Button>
+
+              <span className="font-mono-numbers text-lg font-semibold text-foreground">
+                {buyinsPagos} <span className="text-muted-foreground font-normal">de {buyinCount}</span>
+              </span>
+
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setBuyinsPagos((p) => Math.min(buyinCount, p + 1))}
+                className="h-10 w-10 rounded-lg text-xl font-bold text-gold hover:bg-gold/10 active:scale-95 transition-transform"
+              >
+                +
+              </Button>
+            </div>
+            {faltaPagar > 0 && (
+              <p className="text-amber-400 text-xs mt-2">
+                Faltam {formatBRL(faltaPagar)} em fichas não pagas ainda.
+              </p>
+            )}
           </div>
 
           {/* Ganho — type="text" para aceitar vírgula no Android */}
@@ -167,15 +222,26 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
               <span>Ganho</span>
               <span className="font-mono-numbers">{formatBRL(somaGanho)}</span>
             </div>
-            <div className="flex justify-between font-semibold border-t border-border/50 pt-2 mt-1">
-              <span className="text-foreground">Saldo</span>
+            <div className="flex justify-between text-muted-foreground border-b border-border/30 pb-2">
+              <span>Resultado do jogo</span>
+              <span className="font-mono-numbers">{formatBRL(saldo)}</span>
+            </div>
+            <div className="flex justify-between font-semibold pt-1">
+              <span className="text-foreground">Acerto final</span>
               <span className={cn(
                 'font-mono-numbers',
-                saldo > 0 ? 'positive' : saldo < 0 ? 'negative' : 'text-muted-foreground'
+                acertoFinal > 0 ? 'positive' : acertoFinal < 0 ? 'negative' : 'text-muted-foreground'
               )}>
-                {formatBRL(saldo)}
+                {formatBRL(acertoFinal)}
               </span>
             </div>
+            <p className="text-xs text-muted-foreground/70 leading-relaxed">
+              {acertoFinal > 0
+                ? 'Você deve devolver esse valor ao jogador.'
+                : acertoFinal < 0
+                  ? 'O jogador ainda deve esse valor a você.'
+                  : 'Conta fechada, nada a acertar.'}
+            </p>
           </div>
 
           <Button

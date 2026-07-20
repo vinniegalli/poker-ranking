@@ -67,3 +67,18 @@ CREATE POLICY "Anon write caixa" ON caixa FOR ALL USING (true) WITH CHECK (true)
 -- =============================================
 
 -- INSERT INTO players (name) VALUES ('João'), ('Pedro'), ('Maria'), ('Carlos');
+
+-- =============================================
+-- Migração: acerto final de caixa (buy-ins pagos)
+-- Rode este bloco no SQL Editor do Supabase.
+-- Aditivo apenas — não remove nem altera dados existentes.
+-- =============================================
+
+ALTER TABLE session_players ADD COLUMN IF NOT EXISTS buyins_pagos INTEGER;
+
+-- Para sessões já registradas, assume-se que os buy-ins já estavam
+-- totalmente pagos (era o comportamento implícito antes desta coluna existir).
+UPDATE session_players SET buyins_pagos = buyin_count WHERE buyins_pagos IS NULL;
+
+ALTER TABLE session_players ALTER COLUMN buyins_pagos SET NOT NULL;
+ALTER TABLE session_players ALTER COLUMN buyins_pagos SET DEFAULT 0;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,9 @@ export async function GET() {
 const PREVISAO_ID = '00000000-0000-0000-0000-000000000001'
 
 export async function PUT(req: NextRequest) {
+  const authError = requireAdmin(req)
+  if (authError) return authError
+
   const { min_freq, placements, percentages } = await req.json()
 
   if (

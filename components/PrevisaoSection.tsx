@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { RankingChart } from "@/components/RankingChart";
-import { formatBRL } from "@/lib/calculations";
+import { calcPremioAmount, formatBRL } from "@/lib/calculations";
 import { useAdmin } from "@/hooks/use-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -132,7 +132,7 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
 
   const totalPrize = qualifiers.reduce((s, _, i) => {
     const pct = previsao?.percentages[i] ?? 0;
-    return s + Math.round((pct / 100) * caixaTotal * 100) / 100;
+    return s + calcPremioAmount(pct, caixaTotal);
   }, 0);
 
   const totalConfigPct = previsao?.percentages.reduce((s, v) => s + v, 0) ?? 0;
@@ -257,8 +257,7 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
                 <div className="space-y-2">
                   {qualifiers.map((p, i) => {
                     const pct = previsao.percentages[i] ?? 0;
-                    const prize =
-                      Math.round((pct / 100) * caixaTotal * 100) / 100;
+                    const prize = calcPremioAmount(pct, caixaTotal);
                     const freq = Math.round(
                       (p.participacoes / totalSessions) * 100,
                     );
@@ -396,9 +395,7 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
                 {editPcts.map((pct, i) => {
                   const computed =
                     caixaTotal > 0
-                      ? Math.round(
-                          ((parseFloat(pct) || 0) / 100) * caixaTotal * 100,
-                        ) / 100
+                      ? calcPremioAmount(parseFloat(pct) || 0, caixaTotal)
                       : null;
 
                   return (

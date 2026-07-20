@@ -23,7 +23,7 @@ import { BuyinForm } from '@/components/BuyinForm'
 import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { SessionWithPlayers, Player } from '@/types'
-import { formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcSomaCompra, formatBRL } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
 export default function SessionDetailPage() {
@@ -493,19 +493,26 @@ export default function SessionDetailPage() {
           ) : (
             <div className="rounded-lg card-border bg-card divide-y divide-border/50">
               {session.session_players.map((sp) => {
-                const saldo = Number(sp.soma_ganho) - Number(sp.soma_compra)
+                const buyinsPagos = sp.buyins_pagos ?? sp.buyin_count
+                const faltaPagar = Number(sp.soma_compra) - calcSomaCompra(buyinsPagos)
+                const acertoFinal = calcAcertoFinal(Number(sp.soma_compra), Number(sp.soma_ganho), buyinsPagos)
                 const isPaid = sp.is_paid ?? false
                 return (
                   <div key={sp.id} className="px-4 py-4 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-foreground text-sm">{sp.players?.name}</span>
                         <span className="font-mono-numbers text-xs bg-white/5 rounded px-1.5 py-0.5 text-muted-foreground">
                           {sp.buyin_count}×
                         </span>
-                        {status === 'closed' && saldo > 0 && isPaid && (
+                        {faltaPagar > 0 && (
+                          <span className="text-xs text-amber-400 flex items-center gap-0.5">
+                            <AlertTriangle className="h-3 w-3" /> faltam {formatBRL(faltaPagar)}
+                          </span>
+                        )}
+                        {status === 'closed' && acertoFinal !== 0 && isPaid && (
                           <span className="text-xs text-emerald-400 flex items-center gap-0.5">
-                            <CheckCircle2 className="h-3 w-3" /> Pago
+                            <CheckCircle2 className="h-3 w-3" /> Acertado
                           </span>
                         )}
                       </div>
@@ -518,11 +525,11 @@ export default function SessionDetailPage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className={cn(
                         'font-mono-numbers font-semibold text-sm min-w-[60px] text-right',
-                        saldo > 0 ? 'positive' : saldo < 0 ? 'negative' : 'text-muted-foreground'
+                        acertoFinal > 0 ? 'positive' : acertoFinal < 0 ? 'negative' : 'text-muted-foreground'
                       )}>
-                        {formatBRL(saldo)}
+                        {formatBRL(acertoFinal)}
                       </span>
-                      {isAdmin && status === 'closed' && saldo > 0 && (
+                      {isAdmin && status === 'closed' && acertoFinal !== 0 && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -534,7 +541,7 @@ export default function SessionDetailPage() {
                               : 'text-muted-foreground hover:text-foreground hover:bg-white/5 border border-border/50'
                           )}
                         >
-                          {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : 'Pagar'}
+                          {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : (acertoFinal > 0 ? 'Pagar' : 'Cobrar')}
                         </Button>
                       )}
                       {isAdmin && (status === 'active' || status === 'closed') && (

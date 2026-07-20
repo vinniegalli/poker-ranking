@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-server'
 
 export async function GET() {
   const { data, error } = await supabase
@@ -22,6 +23,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = requireAdmin(req)
+  if (authError) return authError
+
   const { date, notes, status } = await req.json()
   if (!date) {
     return NextResponse.json({ error: 'Date is required' }, { status: 400 })

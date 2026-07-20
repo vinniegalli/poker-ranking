@@ -27,6 +27,7 @@ export function useAdmin() {
 
   function logout() {
     setAdmin(false)
+    fetch('/api/auth', { method: 'DELETE' })
   }
 
   return { isAdmin, login, logout }

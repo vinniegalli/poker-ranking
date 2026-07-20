@@ -10,7 +10,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { formatBRL } from '@/lib/calculations'
+import { calcPremioAmount, formatBRL } from '@/lib/calculations'
 import { useToast } from '@/hooks/use-toast'
 import { RankingRow, Player } from '@/types'
 import { Gift, Trophy, Medal } from 'lucide-react'
@@ -77,15 +77,14 @@ export function DistribuirPremiacaoModal({ caixaTotal, onDistribuido }: Props) {
       toast({ title: 'Nenhum jogador qualificado', variant: 'destructive' })
       return
     }
-    const entries = qualified.map((p, i) => {
-      const pct = parseFloat(percentages[p.player_id] || '0') || 0
-      return {
+    const entries = qualified
+      .map(p => ({
         player_id: p.player_id,
         player_name: p.name,
-        placement: i + 1,
-        amount: Math.round((pct / 100) * caixaTotal * 100) / 100,
-      }
-    }).filter(e => e.amount > 0)
+        amount: calcPremioAmount(parseFloat(percentages[p.player_id] || '0') || 0, caixaTotal),
+      }))
+      .filter(e => e.amount > 0)
+      .map((e, i) => ({ ...e, placement: i + 1 }))
 
     if (entries.length === 0) {
       toast({ title: 'Defina ao menos uma porcentagem', variant: 'destructive' })
@@ -239,7 +238,7 @@ export function DistribuirPremiacaoModal({ caixaTotal, onDistribuido }: Props) {
                 {qualified.map((p, i) => {
                   const freq = Math.round((p.participacoes / totalSessions) * 100)
                   const pct = parseFloat(percentages[p.player_id] || '0') || 0
-                  const computed = Math.round((pct / 100) * caixaTotal * 100) / 100
+                  const computed = calcPremioAmount(pct, caixaTotal)
                   return (
                     <div key={p.player_id} className="flex items-center gap-3 bg-secondary/40 rounded-lg px-3 py-2.5">
                       <span className="text-xs text-muted-foreground w-12 flex-shrink-0">{PLACEMENT_LABELS[i]}</span>
