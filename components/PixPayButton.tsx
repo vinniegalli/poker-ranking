@@ -5,25 +5,22 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
-import { generatePixPayload } from '@/lib/pix'
+import { injectPixAmount } from '@/lib/pix'
 import { formatBRL } from '@/lib/calculations'
 import { useToast } from '@/hooks/use-toast'
 import { QrCode, Copy, Check } from 'lucide-react'
 
 interface PixPayButtonProps {
   amount: number
-  playerName: string
-  pixKey: string
-  merchantName: string
-  merchantCity: string
+  pixStaticCode: string
 }
 
-export function PixPayButton({ amount, playerName, pixKey, merchantName, merchantCity }: PixPayButtonProps) {
+export function PixPayButton({ amount, pixStaticCode }: PixPayButtonProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const { toast } = useToast()
 
-  const payload = generatePixPayload({ key: pixKey, amount, merchantName, merchantCity, txid: playerName })
+  const payload = injectPixAmount(pixStaticCode, amount)
 
   function handleCopy() {
     navigator.clipboard.writeText(payload).then(() => {

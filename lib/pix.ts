@@ -1,5 +1,6 @@
-// Gerador de payload Pix "copia e cola" (BR Code / EMV Merchant Presented QR do Banco Central).
-// Puro e sem dependências — roda tanto no servidor quanto no cliente.
+// Injeta um valor num código Pix "copia e cola" estático (BR Code / EMV do Banco Central)
+// já validado pelo banco do usuário, em vez de gerar um payload do zero — assim aproveitamos
+// a chave/nome/cidade exatamente como o banco já formatou e valida.
 
 function tlv(id: string, value: string): string {
   const length = value.length.toString().padStart(2, '0')
@@ -18,42 +19,37 @@ function crc16(payload: string): string {
   return crc.toString(16).toUpperCase().padStart(4, '0')
 }
 
-/** Remove acentos e caracteres fora do alfabeto aceito pelo padrão Pix, maiúsculas, corta no tamanho máximo */
-function sanitizeText(str: string, maxLen: number): string {
-  const noAccents = str.normalize('NFD').replace(/[̀-ͯ]/g, '')
-  const cleaned = noAccents.replace(/[^A-Za-z0-9 ]/g, '').trim().toUpperCase()
-  return (cleaned || 'NA').slice(0, maxLen)
+interface PixField {
+  id: string
+  value: string
 }
 
-function sanitizeTxid(str: string, maxLen: number): string {
-  const noAccents = str.normalize('NFD').replace(/[̀-ͯ]/g, '')
-  const cleaned = noAccents.replace(/[^A-Za-z0-9]/g, '')
-  return (cleaned || '***').slice(0, maxLen)
+function parseFields(code: string): PixField[] {
+  const fields: PixField[] = []
+  let i = 0
+  while (i < code.length) {
+    const id = code.slice(i, i + 2)
+    if (id === '63') break // campo do CRC — para aqui, ele é sempre recalculado
+    const len = parseInt(code.slice(i + 2, i + 4), 10)
+    const value = code.slice(i + 4, i + 4 + len)
+    fields.push({ id, value })
+    i += 4 + len
+  }
+  return fields
 }
 
-export interface PixPayloadParams {
-  key: string
-  amount: number
-  merchantName: string
-  merchantCity: string
-  txid?: string
-}
+/**
+ * Recebe o código Pix estático do banco (sem valor fixo) e devolve uma cópia
+ * com o campo de valor (54) inserido/atualizado e o CRC recalculado. Todos os
+ * outros campos (chave, nome, cidade, etc.) são preservados como vieram do banco.
+ */
+export function injectPixAmount(staticCode: string, amount: number): string {
+  const fields = parseFields(staticCode).filter((f) => f.id !== '54')
 
-export function generatePixPayload({ key, amount, merchantName, merchantCity, txid }: PixPayloadParams): string {
-  const merchantAccountInfo = tlv('00', 'br.gov.bcb.pix') + tlv('01', key)
-  const additionalData = tlv('05', sanitizeTxid(txid ?? '***', 25))
+  const currencyIndex = fields.findIndex((f) => f.id === '53')
+  const insertAt = currencyIndex === -1 ? fields.length : currencyIndex + 1
+  fields.splice(insertAt, 0, { id: '54', value: amount.toFixed(2) })
 
-  const body =
-    tlv('00', '01') +
-    tlv('26', merchantAccountInfo) +
-    tlv('52', '0000') +
-    tlv('53', '986') +
-    tlv('54', amount.toFixed(2)) +
-    tlv('58', 'BR') +
-    tlv('59', sanitizeText(merchantName, 25)) +
-    tlv('60', sanitizeText(merchantCity, 15)) +
-    tlv('62', additionalData) +
-    '6304'
-
+  const body = fields.map((f) => tlv(f.id, f.value)).join('') + '6304'
   return body + crc16(body)
 }

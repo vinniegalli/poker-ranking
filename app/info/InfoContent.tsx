@@ -12,9 +12,7 @@ import { Pencil, Check, X } from 'lucide-react'
 const DEFAULTS = {
   info_title: 'Regras e Informações',
   info_content: 'Buy-in: R$ 25,00 (R$ 20 pote + R$ 5 caixa)\nRe-buy: R$ 20,00\nMáximo 10 jogadores por mesa\n\nO caixa acumulado é distribuído ao final do ano.',
-  pix_key: '',
-  pix_nome: '',
-  pix_cidade: '',
+  pix_static_code: '',
 }
 
 export default function InfoContent() {
@@ -147,40 +145,26 @@ export default function InfoContent() {
             Configuração Pix (admin)
           </p>
           {editing ? (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave Pix</Label>
-                <Input
-                  value={draft.pix_key}
-                  onChange={(e) => setDraft((d) => ({ ...d, pix_key: e.target.value }))}
-                  placeholder="CPF, e-mail, telefone ou chave aleatória"
-                  className="bg-secondary border-border h-11"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome do recebedor</Label>
-                <Input
-                  value={draft.pix_nome}
-                  onChange={(e) => setDraft((d) => ({ ...d, pix_nome: e.target.value }))}
-                  placeholder="Nome que aparece pro pagador"
-                  className="bg-secondary border-border h-11"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Cidade</Label>
-                <Input
-                  value={draft.pix_cidade}
-                  onChange={(e) => setDraft((d) => ({ ...d, pix_cidade: e.target.value }))}
-                  placeholder="Cidade do recebedor"
-                  className="bg-secondary border-border h-11"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                Código Pix estático (copia e cola, sem valor)
+              </Label>
+              <textarea
+                value={draft.pix_static_code}
+                onChange={(e) => setDraft((d) => ({ ...d, pix_static_code: e.target.value.trim() }))}
+                placeholder="Cole aqui o código gerado pelo seu banco (Pix &gt; Cobrar / Receber, sem definir um valor)"
+                className="w-full bg-secondary border border-border rounded-lg p-3 text-foreground text-xs font-mono resize-none outline-none min-h-[90px]"
+              />
+              <p className="text-xs text-muted-foreground/70">
+                Gere no seu banco um código Pix de cobrança sem valor fixo e cole aqui — o app só insere
+                o valor de cada acerto nele, sem mexer no resto.
+              </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {config.pix_key
-                ? `Chave: ${config.pix_key} · ${config.pix_nome} · ${config.pix_cidade}`
-                : 'Nenhuma chave Pix configurada ainda — clique em editar para adicionar.'}
+              {config.pix_static_code
+                ? 'Código Pix configurado.'
+                : 'Nenhum código Pix configurado ainda — clique em editar para adicionar.'}
             </p>
           )}
         </div>

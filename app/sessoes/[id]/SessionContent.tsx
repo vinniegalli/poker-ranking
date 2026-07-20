@@ -46,7 +46,7 @@ export default function SessionDetailPage() {
   const [reopening, setReopening] = useState(false)
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [pixConfig, setPixConfig] = useState({ pix_key: '', pix_nome: '', pix_cidade: '' })
+  const [pixConfig, setPixConfig] = useState({ pix_static_code: '' })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSession(); fetchPlayers(); fetchPixConfig() }, [id])
@@ -573,14 +573,8 @@ export default function SessionDetailPage() {
                           {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : (acertoFinal > 0 ? 'Pagar' : 'Cobrar')}
                         </Button>
                       )}
-                      {acertoFinal < 0 && pixConfig.pix_key && (status === 'active' || status === 'closed') && (
-                        <PixPayButton
-                          amount={-acertoFinal}
-                          playerName={sp.players?.name ?? ''}
-                          pixKey={pixConfig.pix_key}
-                          merchantName={pixConfig.pix_nome}
-                          merchantCity={pixConfig.pix_cidade}
-                        />
+                      {acertoFinal < 0 && pixConfig.pix_static_code && (status === 'active' || status === 'closed') && (
+                        <PixPayButton amount={-acertoFinal} pixStaticCode={pixConfig.pix_static_code} />
                       )}
                       {isAdmin && (status === 'active' || status === 'closed') && (
                         <>
