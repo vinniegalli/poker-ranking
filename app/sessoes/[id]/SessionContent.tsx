@@ -573,9 +573,9 @@ export default function SessionDetailPage() {
                           {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : (acertoFinal > 0 ? 'Pagar' : 'Cobrar')}
                         </Button>
                       )}
-                      {faltaPagar > 0 && pixConfig.pix_key && (status === 'active' || status === 'closed') && (
+                      {acertoFinal < 0 && pixConfig.pix_key && (status === 'active' || status === 'closed') && (
                         <PixPayButton
-                          amount={faltaPagar}
+                          amount={-acertoFinal}
                           playerName={sp.players?.name ?? ''}
                           pixKey={pixConfig.pix_key}
                           merchantName={pixConfig.pix_nome}
