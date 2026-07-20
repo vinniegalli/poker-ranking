@@ -7,12 +7,16 @@ import { CaixaWidget } from '@/components/CaixaWidget'
 import { StatsSection } from '@/components/StatsSection'
 import { PremiacoesSection } from '@/components/PremiacoesSection'
 import { DistribuirPremiacaoModal } from '@/components/DistribuirPremiacaoModal'
+import { SessionRecapModal } from '@/components/SessionRecapModal'
+import { Button } from '@/components/ui/button'
 import { useAdmin } from '@/hooks/use-admin'
 import { RankingRow } from '@/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PartyPopper } from 'lucide-react'
 
 const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+const LAST_SEEN_RECAP_KEY = 'poker_last_seen_recap'
 
 export default function HomePage() {
   const { isAdmin } = useAdmin()
@@ -21,9 +25,24 @@ export default function HomePage() {
   const [caixaTotal, setCaixaTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [premiacoesKey, setPremiacoesKey] = useState(0)
+  const [latestClosedSessionId, setLatestClosedSessionId] = useState<string | null>(null)
+  const [recapOpen, setRecapOpen] = useState(false)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData() }, [selectedYear])
+
+  useEffect(() => {
+    fetch('/api/sessions')
+      .then((r) => r.json())
+      .then((sessions) => {
+        if (!Array.isArray(sessions)) return
+        const latestClosed = sessions.find((s: { is_closed: boolean }) => s.is_closed)
+        if (!latestClosed) return
+        setLatestClosedSessionId(latestClosed.id)
+        const lastSeen = localStorage.getItem(LAST_SEEN_RECAP_KEY)
+        if (lastSeen !== latestClosed.id) setRecapOpen(true)
+      })
+  }, [])
 
   async function fetchData() {
     setLoading(true)
@@ -52,6 +71,11 @@ export default function HomePage() {
     setPremiacoesKey(k => k + 1)
   }
 
+  function closeRecap() {
+    setRecapOpen(false)
+    if (latestClosedSessionId) localStorage.setItem(LAST_SEEN_RECAP_KEY, latestClosedSessionId)
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -65,6 +89,18 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {latestClosedSessionId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRecapOpen(true)}
+              className="border-border text-muted-foreground hover:text-foreground flex-1 sm:flex-none"
+            >
+              <PartyPopper className="h-4 w-4 mr-2" />
+              Resumo da última sessão
+            </Button>
+          )}
+
           <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="h-10 flex-1 sm:flex-none sm:w-36 bg-card border-border text-sm">
               <SelectValue placeholder="Período" />
@@ -111,6 +147,8 @@ export default function HomePage() {
         <PremiacoesSection refreshKey={premiacoesKey} onDeleted={fetchData} />
         <StatsSection />
       </div>
+
+      <SessionRecapModal sessionId={latestClosedSessionId} open={recapOpen} onClose={closeRecap} />
     </div>
   )
 }

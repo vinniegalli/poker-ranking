@@ -20,10 +20,11 @@ export interface PlayerSessionRow {
 }
 
 const MIN_SESSIONS_FOR_STYLE = 5
-const NOITE_HISTORICA_THRESHOLD = 100
 const SEMPRE_POR_PERTO_THRESHOLD = 0.8
 const ISCA_MIN_BUYINS = 4
 const VETERANO_LEVELS = [50, 25, 10] // do maior pro menor, pra reportar o nível mais alto atingido
+const GANHO_LEVELS = [100, 70, 50, 20, 10] // do maior pro menor, pra reportar o maior ganho de sessão atingido
+const PERDA_LEVELS = [100, 70, 50, 20, 10] // idem, pra maior perda de sessão
 
 function stddev(values: number[]): number {
   if (values.length === 0) return 0
@@ -132,12 +133,25 @@ export function computeBadges(
     }
 
     const melhorSaldo = Math.max(...sessions.map((s) => s.saldo))
-    if (melhorSaldo >= NOITE_HISTORICA_THRESHOLD) {
+    const ganhoLevel = GANHO_LEVELS.find((lvl) => melhorSaldo >= lvl)
+    if (ganhoLevel) {
       badges.push({
-        id: 'noite_historica',
+        id: 'grande_vitoria',
         icon: '💰',
-        label: 'Noite histórica',
-        description: `Melhor sessão pessoal acima de R$${NOITE_HISTORICA_THRESHOLD}`,
+        label: `Ganhou R$${ganhoLevel}+`,
+        description: `Melhor sessão pessoal: +R$${melhorSaldo.toFixed(2)} numa única noite`,
+        theme: 'recorde',
+      })
+    }
+
+    const piorSaldo = Math.min(...sessions.map((s) => s.saldo))
+    const perdaLevel = PERDA_LEVELS.find((lvl) => piorSaldo <= -lvl)
+    if (perdaLevel) {
+      badges.push({
+        id: 'grande_perda',
+        icon: '💀',
+        label: `Perdeu R$${perdaLevel}+`,
+        description: `Pior sessão pessoal: -R$${Math.abs(piorSaldo).toFixed(2)} numa única noite`,
         theme: 'recorde',
       })
     }

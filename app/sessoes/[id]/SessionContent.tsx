@@ -24,7 +24,7 @@ import { PixPayButton } from '@/components/PixPayButton'
 import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { SessionWithPlayers, Player } from '@/types'
-import { calcAcertoFinal, calcFaltaPagar, formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcFaltaPagar, calcMvp, formatBRL } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
 export default function SessionDetailPage() {
@@ -187,12 +187,12 @@ export default function SessionDetailPage() {
   const diff = totalGanho - totalCompra
   const isBalanced = Math.abs(diff) < 0.01
 
-  const mvp = session.session_players.reduce<{ name: string; saldo: number } | null>((best, sp) => {
-    const saldo = Number(sp.soma_ganho) - Number(sp.soma_compra)
-    if (saldo <= 0) return best
-    if (!best || saldo > best.saldo) return { name: sp.players?.name ?? '', saldo }
-    return best
-  }, null)
+  const mvp = calcMvp(
+    session.session_players.map((sp) => ({
+      name: sp.players?.name ?? '',
+      saldo: Number(sp.soma_ganho) - Number(sp.soma_compra),
+    }))
+  )
 
   const statusBadge = {
     pending: <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-xs">Aguardando confirmações</Badge>,

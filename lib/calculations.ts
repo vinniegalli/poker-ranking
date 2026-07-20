@@ -84,6 +84,15 @@ export function calcCurrentLosingStreak(sessions: SessionResult[]): number {
   return streak
 }
 
+/** Jogador com o maior saldo positivo entre os participantes de uma sessão (null se ninguém lucrou) */
+export function calcMvp<T extends { name: string; saldo: number }>(players: T[]): { name: string; saldo: number } | null {
+  return players.reduce<{ name: string; saldo: number } | null>((best, p) => {
+    if (p.saldo <= 0) return best
+    if (!best || p.saldo > best.saldo) return { name: p.name, saldo: p.saldo }
+    return best
+  }, null)
+}
+
 /** Valor em R$ que corresponde a uma porcentagem do caixa, arredondado a centavos */
 export function calcPremioAmount(pct: number, caixaTotal: number): number {
   return Math.round((pct / 100) * caixaTotal * 100) / 100
