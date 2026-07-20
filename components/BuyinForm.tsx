@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { useAdmin } from '@/hooks/use-admin'
 import { SessionPlayer, Player } from '@/types'
-import { calcAcertoFinal, calcSomaCompra, calcTotalPago, formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcFaltaPagar, calcSomaCompra, calcTotalPago, formatBRL } from '@/lib/calculations'
 import { useToast } from '@/hooks/use-toast'
 import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -76,10 +76,9 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
 
   const somaCompra = calcSomaCompra(buyinCount)
   const totalPago = calcTotalPago(buyinCount)
-  const valorPago = calcSomaCompra(buyinsPagos)
-  const faltaPagar = somaCompra - valorPago
+  const faltaPagar = calcFaltaPagar(buyinCount, buyinsPagos, sessionPlayer.caixa_contribution)
   const saldo = somaGanho - somaCompra
-  const acertoFinal = calcAcertoFinal(somaCompra, somaGanho, buyinsPagos)
+  const acertoFinal = calcAcertoFinal(buyinCount, somaGanho, buyinsPagos, sessionPlayer.caixa_contribution)
 
   return (
     <Dialog open={open} onOpenChange={(v) => {

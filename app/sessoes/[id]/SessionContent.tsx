@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   ArrowLeft, UserPlus, CheckCircle2, Trash2,
-  Copy, Check, PlayCircle, Users, AlertTriangle, Scale
+  Copy, Check, PlayCircle, Users, AlertTriangle, Scale, Trophy
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,7 @@ import { BuyinForm } from '@/components/BuyinForm'
 import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { SessionWithPlayers, Player } from '@/types'
-import { calcAcertoFinal, calcSomaCompra, formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcFaltaPagar, formatBRL } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
 export default function SessionDetailPage() {
@@ -178,6 +178,13 @@ export default function SessionDetailPage() {
   const availablePlayers = players.filter((p) => !existingIds.has(p.id))
   const diff = totalGanho - totalCompra
   const isBalanced = Math.abs(diff) < 0.01
+
+  const mvp = session.session_players.reduce<{ name: string; saldo: number } | null>((best, sp) => {
+    const saldo = Number(sp.soma_ganho) - Number(sp.soma_compra)
+    if (saldo <= 0) return best
+    if (!best || saldo > best.saldo) return { name: sp.players?.name ?? '', saldo }
+    return best
+  }, null)
 
   const statusBadge = {
     pending: <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-xs">Aguardando confirmações</Badge>,
@@ -350,6 +357,20 @@ export default function SessionDetailPage() {
             ))}
           </div>
 
+          {/* MVP da noite */}
+          {status === 'closed' && mvp && (
+            <div className="rounded-lg card-border bg-gold/5 border-gold/20 px-4 py-3 mb-4 flex items-center gap-3">
+              <Trophy className="h-5 w-5 text-gold flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">MVP da noite</p>
+                <p className="text-sm font-medium text-foreground truncate">{mvp.name}</p>
+              </div>
+              <span className="font-mono-numbers font-semibold text-sm positive flex-shrink-0">
+                +{formatBRL(mvp.saldo)}
+              </span>
+            </div>
+          )}
+
           {/* Conferência de caixa */}
           {status === 'active' && confirmedCount > 0 && (
             <div className={cn(
@@ -494,8 +515,8 @@ export default function SessionDetailPage() {
             <div className="rounded-lg card-border bg-card divide-y divide-border/50">
               {session.session_players.map((sp) => {
                 const buyinsPagos = sp.buyins_pagos ?? sp.buyin_count
-                const faltaPagar = Number(sp.soma_compra) - calcSomaCompra(buyinsPagos)
-                const acertoFinal = calcAcertoFinal(Number(sp.soma_compra), Number(sp.soma_ganho), buyinsPagos)
+                const faltaPagar = calcFaltaPagar(sp.buyin_count, buyinsPagos, Number(sp.caixa_contribution))
+                const acertoFinal = calcAcertoFinal(sp.buyin_count, Number(sp.soma_ganho), buyinsPagos, Number(sp.caixa_contribution))
                 const isPaid = sp.is_paid ?? false
                 return (
                   <div key={sp.id} className="px-4 py-4 flex items-center gap-3">

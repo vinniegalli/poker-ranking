@@ -18,13 +18,59 @@ export function calcTotalPago(buyinCount: number): number {
 }
 
 /**
- * Acerto final em dinheiro: quanto falta pagar pelas fichas ainda não pagas
- * é descontado do que o jogador tem a receber. Positivo = a banca deve pagar
- * ao jogador; negativo = o jogador ainda deve à banca.
+ * Valor já pago em dinheiro pelas fichas. A taxa de caixa é cobrada junto com
+ * a primeira compra, então só conta como paga quando ao menos 1 buy-in foi pago
+ * (0 buy-ins pagos = nada foi pago, nem o caixa).
  */
-export function calcAcertoFinal(somaCompra: number, somaGanho: number, buyinsPagos: number): number {
-  const saldo = somaGanho - somaCompra
-  return saldo + calcSomaCompra(buyinsPagos)
+export function calcValorPago(buyinsPagos: number, caixaFee: number = CAIXA_FEE): number {
+  if (buyinsPagos <= 0) return 0
+  return calcSomaCompra(buyinsPagos) + caixaFee
+}
+
+/** Quanto ainda falta pagar (pote + caixa) considerando as fichas já pagas */
+export function calcFaltaPagar(buyinCount: number, buyinsPagos: number, caixaFee: number = CAIXA_FEE): number {
+  return calcTotalPago(buyinCount) - calcValorPago(buyinsPagos, caixaFee)
+}
+
+/**
+ * Acerto final em dinheiro: quanto falta pagar pelas fichas ainda não pagas
+ * (pote + caixa) é descontado do que o jogador tem a receber. Positivo = a
+ * banca deve pagar ao jogador; negativo = o jogador ainda deve à banca.
+ */
+export function calcAcertoFinal(buyinCount: number, somaGanho: number, buyinsPagos: number, caixaFee: number = CAIXA_FEE): number {
+  return somaGanho - calcFaltaPagar(buyinCount, buyinsPagos, caixaFee)
+}
+
+export interface SessionResult {
+  date: string
+  saldo: number
+}
+
+/** Sequência atual: sessões mais recentes consecutivas com saldo positivo */
+export function calcCurrentStreak(sessions: SessionResult[]): number {
+  const sorted = [...sessions].sort((a, b) => b.date.localeCompare(a.date))
+  let streak = 0
+  for (const s of sorted) {
+    if (s.saldo > 0) streak++
+    else break
+  }
+  return streak
+}
+
+/** Maior sequência de sessões seguidas com saldo positivo, em toda a história */
+export function calcBestStreak(sessions: SessionResult[]): number {
+  const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date))
+  let best = 0
+  let current = 0
+  for (const s of sorted) {
+    if (s.saldo > 0) {
+      current++
+      best = Math.max(best, current)
+    } else {
+      current = 0
+    }
+  }
+  return best
 }
 
 /** Valor em R$ que corresponde a uma porcentagem do caixa, arredondado a centavos */

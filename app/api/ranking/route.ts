@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { RankingRow } from '@/types'
+import { calcCurrentStreak } from '@/lib/calculations'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
   const map = new Map<string, {
     player_id: string; name: string
     participacoes: number; soma_compra: number; soma_ganho: number
+    sessions: { date: string; saldo: number }[]
   }>()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,12 +44,16 @@ export async function GET(req: NextRequest) {
     const pid = row.player_id
     const name = row.players?.name ?? 'Desconhecido'
     if (!map.has(pid)) {
-      map.set(pid, { player_id: pid, name, participacoes: 0, soma_compra: 0, soma_ganho: 0 })
+      map.set(pid, { player_id: pid, name, participacoes: 0, soma_compra: 0, soma_ganho: 0, sessions: [] })
     }
     const e = map.get(pid)!
+    const somaCompra = Number(row.soma_compra)
+    const somaGanho = Number(row.soma_ganho)
     e.participacoes += 1
-    e.soma_compra += Number(row.soma_compra)
-    e.soma_ganho += Number(row.soma_ganho)
+    e.soma_compra += somaCompra
+    e.soma_ganho += somaGanho
+    const s = Array.isArray(row.sessions) ? row.sessions[0] : row.sessions
+    e.sessions.push({ date: s?.date ?? '', saldo: somaGanho - somaCompra })
   }
 
   const ranking: RankingRow[] = Array.from(map.values()).map((e) => ({
@@ -59,6 +65,7 @@ export async function GET(req: NextRequest) {
     soma_saldo: e.soma_ganho - e.soma_compra,
     media_compra: e.participacoes > 0 ? e.soma_compra / e.participacoes : 0,
     media_ganho: e.participacoes > 0 ? e.soma_ganho / e.participacoes : 0,
+    streak: calcCurrentStreak(e.sessions),
   }))
 
   ranking.sort((a, b) => b.soma_saldo - a.soma_saldo)

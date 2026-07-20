@@ -61,6 +61,7 @@ export interface RankingRow {
   soma_saldo: number
   media_compra: number
   media_ganho: number
+  streak: number
 }
 
 export interface EvolucaoData {

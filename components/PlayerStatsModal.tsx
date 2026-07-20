@@ -23,6 +23,8 @@ interface PlayerStats {
   maior_gasto: { date: string; soma_compra: number } | null
   melhor_mes: { mes: string; saldo: number } | null
   pior_mes: { mes: string; saldo: number } | null
+  streak_atual: number
+  melhor_sequencia: number
 }
 
 interface PlayerStatsModalProps {
@@ -106,7 +108,12 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
             )}>
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Saldo total</p>
               <SaldoValue value={player.soma_saldo} />
-              <p className="text-xs text-muted-foreground mt-1">{stats.participacoes} sessões</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats.participacoes} sessões
+                {stats.streak_atual >= 2 && (
+                  <span className="text-amber-400 ml-2">🔥 {stats.streak_atual} seguidas</span>
+                )}
+              </p>
             </div>
 
             {/* Médias */}
@@ -153,7 +160,7 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
                   </div>
                 )}
                 {stats.maior_gasto && (
-                  <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center justify-between py-2 border-b border-border/30">
                     <div>
                       <p className="text-xs text-muted-foreground">Maior gasto</p>
                       <p className="text-xs text-muted-foreground/60">{fmtDate(stats.maior_gasto.date)}</p>
@@ -161,6 +168,12 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
                     <span className="font-mono-numbers text-sm font-medium negative">
                       {formatBRL(stats.maior_gasto.soma_compra)}
                     </span>
+                  </div>
+                )}
+                {stats.melhor_sequencia >= 2 && (
+                  <div className="flex items-center justify-between py-2">
+                    <p className="text-xs text-muted-foreground">Maior sequência de vitórias</p>
+                    <span className="text-sm font-medium text-amber-400">🔥 {stats.melhor_sequencia}</span>
                   </div>
                 )}
               </div>

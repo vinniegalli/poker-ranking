@@ -63,9 +63,14 @@ export function RankingTable({ data }: RankingTableProps) {
                 <div className="min-w-0">
                   <button
                     onClick={() => setSelected({ row, rank: index + 1 })}
-                    className="font-medium text-foreground text-sm truncate text-left hover:text-gold transition-colors underline-offset-2 hover:underline"
+                    className="font-medium text-foreground text-sm truncate text-left hover:text-gold transition-colors underline-offset-2 hover:underline inline-flex items-center gap-1.5"
                   >
                     {row.name}
+                    {row.streak >= 2 && (
+                      <span className="text-xs font-normal text-amber-400 whitespace-nowrap">
+                        🔥{row.streak}
+                      </span>
+                    )}
                   </button>
                   <p className="text-xs text-muted-foreground sm:hidden mt-0.5">
                     {row.participacoes} sessões

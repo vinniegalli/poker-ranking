@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { calcBestStreak, calcCurrentStreak } from '@/lib/calculations'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data, error } = await supabase
@@ -23,6 +24,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       maior_gasto: null,
       melhor_mes: null,
       pior_mes: null,
+      streak_atual: 0,
+      melhor_sequencia: 0,
     })
   }
 
@@ -70,5 +73,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     maior_gasto: sorted_gasto[0] ?? null,
     melhor_mes: sorted_months[0] ?? null,
     pior_mes: sorted_months[sorted_months.length - 1] ?? null,
+    streak_atual: calcCurrentStreak(sessions),
+    melhor_sequencia: calcBestStreak(sessions),
   })
 }
