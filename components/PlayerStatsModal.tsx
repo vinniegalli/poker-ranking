@@ -80,10 +80,12 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
   const [stats, setStats] = useState<PlayerStats | null>(null)
   const [badges, setBadges] = useState<Badge[]>([])
   const [loading, setLoading] = useState(false)
+  const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
+    setActiveBadgeId(null)
     Promise.all([
       fetch(`/api/players/${player.player_id}/stats`).then((r) => r.json()),
       fetch(`/api/badges?player_id=${player.player_id}`).then((r) => r.json()),
@@ -136,20 +138,34 @@ export function PlayerStatsModal({ player, rank, open, onClose }: PlayerStatsMod
             {badges.length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2 font-medium">Conquistas</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {badges.map((b) => (
-                    <span
-                      key={b.id}
-                      title={b.description}
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium',
-                        THEME_STYLES[b.theme]
-                      )}
-                    >
-                      <span>{b.icon}</span>
-                      {b.label}
-                    </span>
-                  ))}
+                <div className="bg-secondary/30 rounded-lg p-3">
+                  <div className="flex flex-wrap gap-2">
+                    {badges.map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => setActiveBadgeId((cur) => (cur === b.id ? null : b.id))}
+                        onMouseEnter={() => setActiveBadgeId(b.id)}
+                        className={cn(
+                          'h-10 w-10 rounded-full border flex items-center justify-center text-lg transition-transform',
+                          THEME_STYLES[b.theme],
+                          activeBadgeId === b.id ? 'ring-2 ring-gold scale-110' : 'hover:scale-105'
+                        )}
+                      >
+                        {b.icon}
+                      </button>
+                    ))}
+                  </div>
+                  {activeBadgeId && (() => {
+                    const active = badges.find((b) => b.id === activeBadgeId)
+                    if (!active) return null
+                    return (
+                      <p className="text-xs text-foreground/80 mt-3 pt-3 border-t border-border/30">
+                        <span className="font-medium text-foreground">{active.icon} {active.label}</span>
+                        {' — '}{active.description}
+                      </p>
+                    )
+                  })()}
                 </div>
               </div>
             )}

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       session_id: params.id,
       player_id,
       buyin_count,
-      buyins_pagos: buyin_count,
+      buyins_pagos: 0,
       soma_compra,
       soma_ganho: 0,
       caixa_contribution,

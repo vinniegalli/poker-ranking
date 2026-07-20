@@ -44,9 +44,9 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
   if (!isAdmin) return null
 
   function incBuyin() {
+    // Fichas novas começam como não pagas — o jogador paga via Pix ou o admin
+    // confirma manualmente em "Compras pagas" depois.
     setBuyinCount((c) => c + 1)
-    // Assume que a nova ficha foi paga na hora; admin pode corrigir depois.
-    setBuyinsPagos((p) => p + 1)
   }
 
   function decBuyin() {
