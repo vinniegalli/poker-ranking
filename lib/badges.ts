@@ -13,6 +13,7 @@ export interface Badge {
 }
 
 export interface PlayerSessionRow {
+  session_id: string
   player_id: string
   name: string
   date: string
@@ -33,6 +34,17 @@ export const ISCA_MIN_BUYINS = 4
 export const VIRADA_MIN_BUYINS = 3
 export const CIRURGIAO_TOLERANCIA = 1 // R$
 
+/**
+ * Data de corte das conquistas novas. Combinado com o grupo: conquista criada
+ * depois do fato não vale retroativo — só conta a partir da próxima sessão.
+ * Conquistas antigas continuam olhando o histórico inteiro.
+ */
+export const NEW_BADGES_SINCE = '2026-08-25'
+
+export const DOBROU_MULTIPLICADOR = 2
+export const REBUY_KING_MIN_BUYINS = 5
+export const PAO_DURO_MIN_SEQUENCIA = 3
+
 // Todos em ordem do maior pro menor, pra reportar o nível mais alto atingido
 export const VETERANO_LEVELS: Level[] = [{ min: 50, tier: 'ouro' }, { min: 25, tier: 'prata' }, { min: 10, tier: 'bronze' }]
 export const GANHO_LEVELS: Level[] = [
@@ -47,11 +59,57 @@ export const PERDA_LEVELS: Level[] = [
 ]
 export const SALDO_TOTAL_LEVELS: Level[] = [{ min: 500, tier: 'ouro' }, { min: 300, tier: 'prata' }, { min: 100, tier: 'bronze' }]
 export const FIEL_LEVELS: Level[] = [{ min: 4, tier: 'ouro' }, { min: 3, tier: 'prata' }, { min: 2, tier: 'bronze' }]
+export const DONO_DA_MESA_LEVELS: Level[] = [{ min: 5, tier: 'ouro' }, { min: 3, tier: 'prata' }, { min: 1, tier: 'bronze' }]
+export const PAO_DURO_LEVELS: Level[] = [{ min: 8, tier: 'ouro' }, { min: 5, tier: 'prata' }, { min: 3, tier: 'bronze' }]
+export const REBUY_KING_LEVELS: Level[] = [{ min: 8, tier: 'ouro' }, { min: 6, tier: 'prata' }, { min: 5, tier: 'bronze' }]
 const ESTILO_RANK_TIERS: BadgeTier[] = ['ouro', 'prata', 'bronze'] // posição 1, 2, 3 no grupo
 export const PODIO_META: Record<1 | 2 | 3, { label: string; icon: string; tier: BadgeTier }> = {
   1: { label: 'Rei do ranking', icon: '👑', tier: 'ouro' },
   2: { label: 'Vice-campeão', icon: '🥈', tier: 'prata' },
   3: { label: '3º lugar no ranking', icon: '🥉', tier: 'bronze' },
+}
+
+interface PlayerSession {
+  session_id: string
+  date: string
+  saldo: number
+  buyin_count: number
+  soma_compra: number
+  soma_ganho: number
+}
+
+function bump(map: Map<string, number>, key: string) {
+  map.set(key, (map.get(key) ?? 0) + 1)
+}
+
+/** Maior sequência de sessões seguidas em que o jogador não recomprou (1 buy-in só) */
+function maxSequenciaSemRecompra(sessions: PlayerSession[]): number {
+  let melhor = 0
+  let atual = 0
+  for (const s of sessions) {
+    if (s.buyin_count === 1) {
+      atual++
+      if (atual > melhor) melhor = atual
+    } else {
+      atual = 0
+    }
+  }
+  return melhor
+}
+
+/**
+ * Fênix: o saldo acumulado da carreira já esteve negativo e virou positivo numa
+ * sessão a partir do corte. Olha o histórico todo pra saber de onde ele veio,
+ * mas a virada em si precisa acontecer depois da data de corte.
+ */
+function virouOJogoDepoisDoCorte(sessions: PlayerSession[]): boolean {
+  let acumulado = 0
+  for (const s of sessions) {
+    const anterior = acumulado
+    acumulado += s.saldo
+    if (anterior < 0 && acumulado > 0 && s.date >= NEW_BADGES_SINCE) return true
+  }
+  return false
 }
 
 function stddev(values: number[]): number {
@@ -65,13 +123,44 @@ export function computeBadges(
   rows: PlayerSessionRow[],
   playersWithPrize: Set<string>
 ): Map<string, Badge[]> {
-  const byPlayer = new Map<string, { name: string; sessions: { date: string; saldo: number; buyin_count: number }[] }>()
+  const byPlayer = new Map<string, { name: string; sessions: PlayerSession[] }>()
   for (const row of rows) {
     if (!byPlayer.has(row.player_id)) {
       byPlayer.set(row.player_id, { name: row.name, sessions: [] })
     }
     const saldo = row.soma_ganho - row.soma_compra
-    byPlayer.get(row.player_id)!.sessions.push({ date: row.date, saldo, buyin_count: row.buyin_count })
+    byPlayer.get(row.player_id)!.sessions.push({
+      session_id: row.session_id,
+      date: row.date,
+      saldo,
+      buyin_count: row.buyin_count,
+      soma_compra: row.soma_compra,
+      soma_ganho: row.soma_ganho,
+    })
+  }
+
+  // Quem foi o maior ganhador / maior perdedor de cada noite. Só entra sessão a
+  // partir do corte, e só vale com mesa de 2+ jogadores (senão não há disputa).
+  const donoDaMesaCount = new Map<string, number>()
+  const lanterninhaCount = new Map<string, number>()
+  const bySession = new Map<string, { pid: string; saldo: number }[]>()
+  for (const row of rows) {
+    if (row.date < NEW_BADGES_SINCE) continue
+    if (!bySession.has(row.session_id)) bySession.set(row.session_id, [])
+    bySession.get(row.session_id)!.push({ pid: row.player_id, saldo: row.soma_ganho - row.soma_compra })
+  }
+  for (const players of bySession.values()) {
+    if (players.length < 2) continue
+    const saldos = players.map((p) => p.saldo)
+    const maior = Math.max(...saldos)
+    const menor = Math.min(...saldos)
+    if (maior === menor) continue // noite empatada: ninguém dominou nem afundou
+    if (maior > 0) {
+      for (const p of players) if (p.saldo === maior) bump(donoDaMesaCount, p.pid)
+    }
+    if (menor < 0) {
+      for (const p of players) if (p.saldo === menor) bump(lanterninhaCount, p.pid)
+    }
   }
 
   // Pódio do ranking por ano: top 3 por soma de saldo
@@ -177,6 +266,80 @@ export function computeBadges(
         label: 'Cirurgião',
         description: `Terminou uma sessão a menos de R$${CIRURGIAO_TOLERANCIA} do zero a zero`,
         theme: 'estilo',
+      })
+    }
+
+    // --- Conquistas novas: valem só a partir de NEW_BADGES_SINCE ---
+    const sessoesOrdenadas = [...sessions].sort((a, b) => a.date.localeCompare(b.date))
+    const sessoesNovas = sessoesOrdenadas.filter((s) => s.date >= NEW_BADGES_SINCE)
+
+    const donos = donoDaMesaCount.get(pid) ?? 0
+    const donoLevel = DONO_DA_MESA_LEVELS.find((lvl) => donos >= lvl.min)
+    if (donoLevel) {
+      badges.push({
+        id: 'dono_da_mesa',
+        icon: '🏆',
+        label: 'Dono da mesa',
+        description: `Maior ganhador da noite ${donos}x`,
+        theme: 'recorde',
+        tier: donoLevel.tier,
+      })
+    }
+
+    const lanternas = lanterninhaCount.get(pid) ?? 0
+    if (lanternas > 0) {
+      badges.push({
+        id: 'lanterninha',
+        icon: '🪫',
+        label: 'Lanterninha',
+        description: `Maior perdedor da noite ${lanternas}x`,
+        theme: 'recorde',
+      })
+    }
+
+    if (sessoesNovas.some((s) => s.soma_compra > 0 && s.soma_ganho >= DOBROU_MULTIPLICADOR * s.soma_compra)) {
+      badges.push({
+        id: 'dobrou',
+        icon: '💵',
+        label: 'Dobrou',
+        description: `Levou ${DOBROU_MULTIPLICADOR}x o que comprou numa única noite`,
+        theme: 'recorde',
+      })
+    }
+
+    const sequenciaPaoDuro = maxSequenciaSemRecompra(sessoesNovas)
+    const paoDuroLevel = PAO_DURO_LEVELS.find((lvl) => sequenciaPaoDuro >= lvl.min)
+    if (paoDuroLevel) {
+      badges.push({
+        id: 'pao_duro',
+        icon: '🪙',
+        label: 'Pão-duro',
+        description: `${sequenciaPaoDuro} sessões seguidas sem recomprar`,
+        theme: 'estilo',
+        tier: paoDuroLevel.tier,
+      })
+    }
+
+    const maiorBuyinNoite = sessoesNovas.length > 0 ? Math.max(...sessoesNovas.map((s) => s.buyin_count)) : 0
+    const rebuyLevel = REBUY_KING_LEVELS.find((lvl) => maiorBuyinNoite >= lvl.min)
+    if (rebuyLevel) {
+      badges.push({
+        id: 'rebuy_king',
+        icon: '💸',
+        label: 'Rebuy king',
+        description: `Comprou ${maiorBuyinNoite} fichas numa única noite`,
+        theme: 'estilo',
+        tier: rebuyLevel.tier,
+      })
+    }
+
+    if (virouOJogoDepoisDoCorte(sessoesOrdenadas)) {
+      badges.push({
+        id: 'fenix',
+        icon: '🐦‍🔥',
+        label: 'Fênix',
+        description: 'Saiu do saldo acumulado negativo e virou pro positivo',
+        theme: 'recorde',
       })
     }
 

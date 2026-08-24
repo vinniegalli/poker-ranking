@@ -3,6 +3,8 @@ import {
   STREAK_THRESHOLD, MIN_SESSIONS_FOR_STYLE, SEMPRE_POR_PERTO_THRESHOLD,
   ISCA_MIN_BUYINS, VIRADA_MIN_BUYINS, CIRURGIAO_TOLERANCIA,
   VETERANO_LEVELS, SALDO_TOTAL_LEVELS, FIEL_LEVELS,
+  DONO_DA_MESA_LEVELS, PAO_DURO_LEVELS, REBUY_KING_LEVELS,
+  DOBROU_MULTIPLICADOR, NEW_BADGES_SINCE,
 } from './badges'
 
 export interface BadgeCatalogEntry {
@@ -12,6 +14,8 @@ export interface BadgeCatalogEntry {
   theme: BadgeTheme
   howTo: string
   levels?: { tier: BadgeTier; requirement: string }[]
+  /** Conquistas novas não valem retroativo — a data vira um selo "conta a partir de" */
+  since?: string
 }
 
 // Os arrays de nível em lib/badges.ts vêm do maior pro menor (pra achar o nível mais alto
@@ -69,6 +73,16 @@ export const BADGE_CATALOG: BadgeCatalogEntry[] = [
     howTo: `Termine uma sessão a menos de R$${CIRURGIAO_TOLERANCIA} do zero a zero`,
   },
   {
+    id: 'pao_duro', icon: '🪙', name: 'Pão-duro', theme: 'estilo', since: NEW_BADGES_SINCE,
+    howTo: 'Jogue sessões seguidas sem recomprar nenhuma vez (1 buy-in por noite)',
+    levels: levelsFromArray(PAO_DURO_LEVELS, (min) => `${min} sessões seguidas sem recomprar`),
+  },
+  {
+    id: 'rebuy_king', icon: '💸', name: 'Rebuy king', theme: 'estilo', since: NEW_BADGES_SINCE,
+    howTo: 'O nível vem da noite em que você mais recomprou fichas',
+    levels: levelsFromArray(REBUY_KING_LEVELS, (min) => `${min}+ fichas numa única noite`),
+  },
+  {
     id: 'grande_vitoria', icon: '💰', name: 'Grande vitória', theme: 'recorde',
     howTo: 'O nível é definido pela sua melhor sessão — quanto mais ganhou numa única noite, mais alto o nível',
     levels: [
@@ -99,6 +113,23 @@ export const BADGE_CATALOG: BadgeCatalogEntry[] = [
       { tier: 'prata', requirement: '2º lugar no ranking do ano (Vice-campeão)' },
       { tier: 'bronze', requirement: '3º lugar no ranking do ano' },
     ],
+  },
+  {
+    id: 'dono_da_mesa', icon: '🏆', name: 'Dono da mesa', theme: 'recorde', since: NEW_BADGES_SINCE,
+    howTo: 'Termine a noite como o maior ganhador da mesa. Quanto mais noites, maior o nível',
+    levels: levelsFromArray(DONO_DA_MESA_LEVELS, (min) => `${min}x maior ganhador da noite`),
+  },
+  {
+    id: 'lanterninha', icon: '🪫', name: 'Lanterninha', theme: 'recorde', since: NEW_BADGES_SINCE,
+    howTo: 'Termine a noite como o maior perdedor da mesa (alguém tem que pagar a conta)',
+  },
+  {
+    id: 'dobrou', icon: '💵', name: 'Dobrou', theme: 'recorde', since: NEW_BADGES_SINCE,
+    howTo: `Saia da noite com ${DOBROU_MULTIPLICADOR}x ou mais do que colocou em fichas`,
+  },
+  {
+    id: 'fenix', icon: '🐦‍🔥', name: 'Fênix', theme: 'recorde', since: NEW_BADGES_SINCE,
+    howTo: 'Esteja com saldo acumulado negativo na carreira e vire pro positivo',
   },
   {
     id: 'sempre_por_perto', icon: '🎯', name: 'Sempre por perto', theme: 'participacao',

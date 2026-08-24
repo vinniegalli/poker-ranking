@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CheckCircle2, Users, UserPlus, Lock } from 'lucide-react'
+import { CheckCircle2, Users, UserPlus, Lock, Search, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Session, SessionPlayer, Player } from '@/types'
+import { normalizeName } from '@/lib/player-names'
 import { cn } from '@/lib/utils'
 
 const MAX_PLAYERS = 10
@@ -27,10 +28,15 @@ export default function ConfirmarContent() {
 
   // Seleção do jogador
   const [mode, setMode] = useState<'select' | 'new'>('select')
+  const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState('')
   const [newName, setNewName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  // Anti-duplicata: nomes já cadastrados que podem ser a mesma pessoa
+  const [suggestions, setSuggestions] = useState<Player[] | null>(null)
+  const [exactDuplicate, setExactDuplicate] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -46,23 +52,15 @@ export default function ConfirmarContent() {
     setLoading(false)
   }
 
-  async function handleConfirm() {
+  function resetDuplicateCheck() {
+    setSuggestions(null)
+    setExactDuplicate(false)
+  }
+
+  /** Confirma presença de um jogador que já existe */
+  async function confirmPlayer(playerId: string, name: string) {
     setError('')
     setSubmitting(true)
-
-    let playerId = selectedId
-
-    if (mode === 'new') {
-      if (!newName.trim()) { setSubmitting(false); return }
-      const res = await fetch('/api/players', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim() }),
-      })
-      if (!res.ok) { setError('Erro ao criar jogador.'); setSubmitting(false); return }
-      const p = await res.json()
-      playerId = p.id
-    }
 
     const res = await fetch(`/api/sessions/${id}/players`, {
       method: 'POST',
@@ -73,16 +71,59 @@ export default function ConfirmarContent() {
     setSubmitting(false)
 
     if (res.ok) {
-      const name = mode === 'new'
-        ? newName.trim()
-        : allPlayers.find((p) => p.id === playerId)?.name ?? ''
       setConfirmedName(name)
       setConfirmed(true)
+      resetDuplicateCheck()
       fetchData()
     } else {
       const err = await res.json()
       setError(err.error || 'Erro ao confirmar presença.')
     }
+  }
+
+  /**
+   * Cria o jogador novo. Se o backend achar nome igual ou parecido, mostra as
+   * sugestões em vez de cadastrar — `confirmNew` é o "não sou nenhum desses".
+   */
+  async function createAndConfirm(confirmNew: boolean) {
+    const name = newName.trim()
+    if (!name) return
+
+    setError('')
+    resetDuplicateCheck()
+    setSubmitting(true)
+
+    const res = await fetch('/api/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, confirm_new: confirmNew }),
+    })
+
+    if (res.status === 409) {
+      const err = await res.json()
+      setSuggestions(err.existing ? [err.existing] : err.suggestions ?? [])
+      setExactDuplicate(err.error === 'duplicate')
+      setSubmitting(false)
+      return
+    }
+
+    if (!res.ok) {
+      setError('Erro ao criar jogador.')
+      setSubmitting(false)
+      return
+    }
+
+    const p: Player = await res.json()
+    await confirmPlayer(p.id, name)
+  }
+
+  function handleConfirm() {
+    if (mode === 'new') {
+      createAndConfirm(false)
+      return
+    }
+    const player = allPlayers.find((p) => p.id === selectedId)
+    if (player) confirmPlayer(player.id, player.name)
   }
 
   if (loading) {
@@ -109,6 +150,11 @@ export default function ConfirmarContent() {
   const isFull = count >= MAX_PLAYERS
   const confirmedIds = new Set(confirmedPlayers.map((sp) => sp.player_id))
   const availablePlayers = allPlayers.filter((p) => !confirmedIds.has(p.id))
+
+  const searchTerm = normalizeName(search)
+  const visiblePlayers = searchTerm
+    ? availablePlayers.filter((p) => normalizeName(p.name).includes(searchTerm))
+    : availablePlayers
 
   const isUnavailable = session.status !== 'pending'
 
@@ -195,7 +241,7 @@ export default function ConfirmarContent() {
             {/* Mode toggle */}
             <div className="flex gap-2">
               <button
-                onClick={() => setMode('select')}
+                onClick={() => { setMode('select'); resetDuplicateCheck(); setError('') }}
                 className={cn(
                   'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
                   mode === 'select'
@@ -206,7 +252,7 @@ export default function ConfirmarContent() {
                 Meu nome já está aqui
               </button>
               <button
-                onClick={() => setMode('new')}
+                onClick={() => { setMode('new'); resetDuplicateCheck(); setError('') }}
                 className={cn(
                   'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
                   mode === 'new'
@@ -225,31 +271,107 @@ export default function ConfirmarContent() {
                   Todos os jogadores já confirmaram.
                 </p>
               ) : (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {availablePlayers.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedId(p.id)}
-                      className={cn(
-                        'w-full text-left px-4 py-3 rounded-lg text-sm transition-colors',
-                        selectedId === p.id
-                          ? 'bg-gold/15 text-gold border border-gold/30'
-                          : 'bg-secondary text-foreground hover:bg-secondary/70'
-                      )}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="relative">
+                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar seu nome..."
+                      className="bg-secondary border-border h-11 text-base pl-9"
+                    />
+                  </div>
+                  {visiblePlayers.length === 0 ? (
+                    <p className="text-muted-foreground text-sm text-center py-2">
+                      Nenhum jogador com esse nome. Se é seu primeiro jogo, use a aba ao lado.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {visiblePlayers.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedId(p.id)}
+                          className={cn(
+                            'w-full text-left px-4 py-3 rounded-lg text-sm transition-colors',
+                            selectedId === p.id
+                              ? 'bg-gold/15 text-gold border border-gold/30'
+                              : 'bg-secondary text-foreground hover:bg-secondary/70'
+                          )}
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )
             ) : (
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Seu nome"
-                className="bg-secondary border-border h-12 text-base"
-                autoFocus
-              />
+              <>
+                <Input
+                  value={newName}
+                  onChange={(e) => { setNewName(e.target.value); resetDuplicateCheck() }}
+                  placeholder="Seu nome"
+                  className="bg-secondary border-border h-12 text-base"
+                  autoFocus
+                />
+                <p className="text-muted-foreground/70 text-xs">
+                  Só use isso se for mesmo sua primeira vez. Se já jogou antes, procure seu
+                  nome na outra aba — cadastro novo racha seu histórico e suas conquistas.
+                </p>
+              </>
+            )}
+
+            {/* Aviso de possível duplicata */}
+            {suggestions && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-3">
+                <div className="flex gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-300">
+                      {exactDuplicate ? 'Esse nome já está cadastrado' : 'Já tem alguém parecido na lista'}
+                    </p>
+                    <p className="text-xs text-amber-200/70 mt-0.5">
+                      Se for você, toque no seu nome — assim seu histórico continua num cadastro só.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  {suggestions.map((p) => {
+                    const already = confirmedIds.has(p.id)
+                    return (
+                      <button
+                        key={p.id}
+                        disabled={already || submitting}
+                        onClick={() => confirmPlayer(p.id, p.name)}
+                        className={cn(
+                          'w-full text-left px-4 py-2.5 rounded-lg text-sm transition-colors',
+                          already
+                            ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
+                            : 'bg-secondary text-foreground hover:bg-secondary/70'
+                        )}
+                      >
+                        {p.name}
+                        {already && <span className="text-xs ml-2">(já confirmado)</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {exactDuplicate ? (
+                  <p className="text-xs text-amber-200/70">
+                    Se for outra pessoa, adicione um sobrenome pra diferenciar.
+                  </p>
+                ) : (
+                  <button
+                    onClick={() => createAndConfirm(true)}
+                    disabled={submitting}
+                    className="text-xs text-amber-200/80 underline underline-offset-2 hover:text-amber-100"
+                  >
+                    Não sou nenhum desses, cadastrar &quot;{newName.trim()}&quot;
+                  </button>
+                )}
+              </div>
             )}
 
             {error && (

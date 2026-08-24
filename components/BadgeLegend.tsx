@@ -15,6 +15,12 @@ const THEME_LABELS: Record<BadgeTheme, string> = {
 
 const THEME_ORDER: BadgeTheme[] = ['sequencia', 'estilo', 'recorde', 'participacao', 'premio']
 
+/** '2026-08-25' -> '25/08/2026' (sem Date, pra não escorregar de fuso) */
+function formatSince(iso: string): string {
+  const [ano, mes, dia] = iso.split('-')
+  return `${dia}/${mes}/${ano}`
+}
+
 export function BadgeLegend() {
   return (
     <div className="rounded-xl card-border bg-card p-5">
@@ -46,8 +52,20 @@ export function BadgeLegend() {
                       {b.icon}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">{b.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-foreground">{b.name}</p>
+                        {b.since && (
+                          <span className="text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-gold/15 text-gold">
+                            Novo
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{b.howTo}</p>
+                      {b.since && (
+                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                          Conta a partir das sessões de {formatSince(b.since)} — não vale retroativo.
+                        </p>
+                      )}
                       {b.levels && (
                         <ul className="mt-1.5 space-y-0.5">
                           {b.levels.map((lvl) => (

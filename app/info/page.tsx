@@ -1,6 +1,8 @@
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 
-const InfoContent = dynamic(() => import('./InfoContent'), { ssr: false })
+export const dynamic = 'force-dynamic'
+
+const InfoContent = nextDynamic(() => import('./InfoContent'), { ssr: false })
 
 export default function InfoPage() {
   return <InfoContent />

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   ] = await Promise.all([
     supabase
       .from('session_players')
-      .select('player_id, buyin_count, soma_compra, soma_ganho, players(name), sessions!inner(date, is_closed)')
+      .select('session_id, player_id, buyin_count, soma_compra, soma_ganho, players(name), sessions!inner(date, is_closed)')
       .eq('sessions.is_closed', true),
     supabase.from('premiacoes').select('player_id').not('player_id', 'is', null),
     supabase.from('quadra_mes').select('claimed_by').not('claimed_by', 'is', null),
@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
   const rows: PlayerSessionRow[] = (spData as any[]).map((row) => {
     const s = Array.isArray(row.sessions) ? row.sessions[0] : row.sessions
     return {
+      session_id: row.session_id,
       player_id: row.player_id,
       name: row.players?.name ?? 'Desconhecido',
       date: s?.date ?? '',
