@@ -14,12 +14,16 @@ import {
 import { Plus, Minus, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { DateRange, inRange } from '@/lib/periodo'
 
 interface CaixaWidgetProps {
   total: number
   label?: string
   onSaidaChange?: () => void
+  range?: DateRange | null
 }
+
+const COLLAPSED_COUNT = 3
 
 interface PremiacaoDistribution {
   distribution_id: string
@@ -34,7 +38,7 @@ type Movement =
   | (CaixaEntrada & { kind: 'entrada' })
   | (PremiacaoDistribution & { kind: 'premiacao' })
 
-export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: CaixaWidgetProps) {
+export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange, range = null }: CaixaWidgetProps) {
   const { isAdmin } = useAdmin()
   const { toast } = useToast()
 
@@ -53,6 +57,15 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
   const [entradaAmount, setEntradaAmount] = useState('')
   const [entradaDate, setEntradaDate] = useState(new Date().toISOString().split('T')[0])
   const [savingEntrada, setSavingEntrada] = useState(false)
+
+  const [showAll, setShowAll] = useState(false)
+  // Apagar exige dois toques: o 1º arma, o 2º confirma (some sozinho em 4s)
+  const [armedDelete, setArmedDelete] = useState<string | null>(null)
+  useEffect(() => {
+    if (!armedDelete) return
+    const t = setTimeout(() => setArmedDelete(null), 4000)
+    return () => clearTimeout(t)
+  }, [armedDelete])
 
   useEffect(() => { fetchAll() }, [])
 
@@ -127,7 +140,7 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
     ...saidas.map(s => ({ ...s, kind: 'saida' as const })),
     ...entradas.map(e => ({ ...e, kind: 'entrada' as const })),
     ...premiacoes.map(p => ({ ...p, id: p.distribution_id, kind: 'premiacao' as const })),
-  ].sort((a, b) => {
+  ].filter((m) => inRange(m.date, range)).sort((a, b) => {
     const da = new Date('date' in a ? a.date : '').getTime()
     const db = new Date('date' in b ? b.date : '').getTime()
     return db - da
@@ -233,7 +246,7 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
         <div className="border-t border-border px-5 py-3">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2 font-medium">Movimentações</p>
           <div className="space-y-1.5">
-            {movements.map((m) => {
+            {(showAll ? movements : movements.slice(0, COLLAPSED_COUNT)).map((m) => {
               const isPos = m.kind === 'entrada'
               const isPremiacao = m.kind === 'premiacao'
               const amount = isPremiacao ? (m as PremiacaoDistribution).total : (m as CaixaSaida).amount
@@ -241,8 +254,10 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
                 ? (m as PremiacaoDistribution).description || ((m as PremiacaoDistribution).type === 'ranking' ? 'Premiação Ranking' : 'Quadra do Mês')
                 : (m as CaixaSaida).description
 
+              const key = m.kind + '-' + ('distribution_id' in m ? m.distribution_id : m.id)
+              const armed = armedDelete === key
               return (
-                <div key={m.kind + '-' + ('distribution_id' in m ? m.distribution_id : m.id)} className="flex items-center justify-between gap-2 text-sm">
+                <div key={key} className="flex items-center justify-between gap-2 text-sm">
                   <div className="min-w-0 flex-1">
                     <p className="text-foreground/80 truncate">
                       {label}
@@ -259,14 +274,18 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
                     {isAdmin && (
                       <button
                         onClick={() => {
+                          if (!armed) { setArmedDelete(key); return }
+                          setArmedDelete(null)
                           if (m.kind === 'saida') handleDeleteSaida(m.id)
                           else if (m.kind === 'entrada') handleDeleteEntrada(m.id)
                           else handleDeletePremiacao((m as PremiacaoDistribution).distribution_id)
                         }}
-                        className="text-muted-foreground hover:text-destructive transition-colors -mr-1 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                        className={`transition-colors -mr-1 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-md ${
+                          armed ? 'text-destructive bg-destructive/10 text-xs font-medium px-2.5' : 'text-muted-foreground hover:text-destructive'
+                        }`}
                         title={isPremiacao ? 'Reverter premiação' : 'Remover'}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {armed ? (isPremiacao ? 'Reverter?' : 'Apagar?') : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     )}
                   </div>
@@ -274,6 +293,14 @@ export function CaixaWidget({ total, label = 'Saldo em Caixa', onSaidaChange }: 
               )
             })}
           </div>
+          {movements.length > COLLAPSED_COUNT && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-2 w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              {showAll ? 'Mostrar menos' : `Ver todas (${movements.length})`}
+            </button>
+          )}
         </div>
       )}
     </div>

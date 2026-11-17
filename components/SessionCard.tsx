@@ -16,7 +16,7 @@ export function SessionCard({ session, onDelete }: SessionCardProps) {
     <div className="rounded-lg card-border card-hover bg-card px-5 py-4 flex items-center justify-between">
       <Link href={`/sessoes/${session.id}`} className="flex-1 min-w-0">
         <div className="min-w-0">
-          <p className="font-display font-semibold text-foreground capitalize text-sm">
+          <p className="font-display font-semibold text-foreground first-letter:uppercase text-sm">
             {format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
           {session.notes && (

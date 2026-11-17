@@ -217,7 +217,7 @@ export default function ConfirmarContent() {
         {/* Session info card */}
         <div className="rounded-xl card-border bg-card px-5 py-5">
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Sessão de poker</p>
-          <h1 className="font-display text-xl font-bold text-foreground capitalize">
+          <h1 className="font-display text-xl font-bold text-foreground first-letter:uppercase">
             {format(date, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </h1>
           <p className="text-muted-foreground text-xs mt-0.5">
@@ -323,7 +323,7 @@ export default function ConfirmarContent() {
                     : 'bg-secondary text-muted-foreground hover:text-foreground'
                 )}
               >
-                Meu nome já está aqui
+                Já joguei aqui
               </button>
               <button
                 onClick={() => { setMode('new'); resetDuplicateCheck(); setError('') }}

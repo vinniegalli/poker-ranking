@@ -177,10 +177,13 @@ export function PrevisaoSection({ ranking, caixaTotal, range = null }: Props) {
             variant="ghost"
             size="sm"
             onClick={openEdit}
-            className="text-muted-foreground hover:text-foreground h-8 gap-1.5 text-xs"
+            className="text-muted-foreground hover:text-foreground h-8 gap-1.5 text-xs flex-shrink-0"
           >
             <Pencil className="h-3.5 w-3.5" />
-            {previsao ? "Editar previsão" : "Configurar previsão"}
+            <span className="sm:hidden">{previsao ? "Editar" : "Configurar"}</span>
+            <span className="hidden sm:inline">
+              {previsao ? "Editar previsão" : "Configurar previsão"}
+            </span>
           </Button>
         )}
       </div>

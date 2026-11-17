@@ -158,7 +158,7 @@ export function DistribuirPremiacaoModal({ caixaTotal, onDistribuido }: Props) {
         <Button className="bg-gold text-felt hover:bg-gold/90 font-semibold h-10 px-4 text-sm flex-shrink-0" size="sm">
           <Gift className="h-4 w-4 sm:mr-2" />
           <span className="hidden sm:inline">Distribuir Premiação</span>
-          <span className="sm:hidden">Prêmio</span>
+          <span className="sm:hidden ml-2">Prêmio</span>
         </Button>
       </DialogTrigger>
       <DialogContent

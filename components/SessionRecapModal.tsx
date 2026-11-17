@@ -80,7 +80,7 @@ export function SessionRecapModal({ sessionId, open, onClose }: SessionRecapModa
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="card-border bg-card w-full max-w-sm mx-auto max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-foreground text-lg capitalize">
+          <DialogTitle className="font-display text-foreground text-lg first-letter:uppercase">
             {loading ? 'Resumo da sessão' : dateFormatted}
           </DialogTitle>
         </DialogHeader>

@@ -47,6 +47,12 @@ export default function SessionDetailPage() {
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [pixConfig, setPixConfig] = useState({ pix_static_code: '' })
+  const [armedRemove, setArmedRemove] = useState<string | null>(null)
+  useEffect(() => {
+    if (!armedRemove) return
+    const t = setTimeout(() => setArmedRemove(null), 4000)
+    return () => clearTimeout(t)
+  }, [armedRemove])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchSession(); fetchPlayers(); fetchPixConfig() }, [id])
@@ -143,6 +149,9 @@ export default function SessionDetailPage() {
   }
 
   async function handleRemovePlayer(spId: string) {
+    // 1º toque arma, 2º confirma (evita remover alguém sem querer no celular)
+    if (armedRemove !== spId) { setArmedRemove(spId); return }
+    setArmedRemove(null)
     const res = await fetch(`/api/sessions/${id}/players/${spId}`, { method: 'DELETE' })
     if (res.ok) { toast({ title: 'Removido' }); fetchSession() }
     else toast({ title: 'Erro ao remover', variant: 'destructive' })
@@ -234,7 +243,7 @@ export default function SessionDetailPage() {
 
       {/* Header */}
       <div className="mb-5">
-        <h1 className="font-display text-xl font-bold text-foreground capitalize tracking-tight">
+        <h1 className="font-display text-xl font-bold text-foreground first-letter:uppercase tracking-tight">
           {format(date, "EEEE, d 'de' MMMM", { locale: ptBR })}
         </h1>
         <p className="text-muted-foreground text-xs mt-0.5">
@@ -341,7 +350,7 @@ export default function SessionDetailPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={() => handleRemovePlayer(sp.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {armedRemove === sp.id ? <span className="text-[10px] text-destructive">Sim?</span> : <Trash2 className="h-3.5 w-3.5" />}
                       </Button>
                       </div>
                     )}
@@ -594,69 +603,84 @@ export default function SessionDetailPage() {
                 const faltaPagar = calcFaltaPagar(sp.buyin_count, buyinsPagos, Number(sp.caixa_contribution), values)
                 const acertoFinal = calcAcertoFinal(sp.buyin_count, Number(sp.soma_ganho), buyinsPagos, Number(sp.caixa_contribution), values)
                 const isPaid = sp.is_paid ?? false
+                const hasActions = isAdmin || (acertoFinal < 0 && !!pixConfig.pix_static_code)
+                const hasChips = faltaPagar > 0 || (status === 'closed' && acertoFinal !== 0 && isPaid)
                 return (
-                  <div key={sp.id} className="px-4 py-4 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-foreground text-sm">{sp.players?.name}</span>
-                        <span className="font-mono-numbers text-xs bg-white/5 rounded px-1.5 py-0.5 text-muted-foreground">
-                          {sp.buyin_count}×
-                        </span>
-                        {faltaPagar > 0 && (
-                          <span className="text-xs text-amber-400 flex items-center gap-0.5">
-                            <AlertTriangle className="h-3 w-3" /> faltam {formatBRL(faltaPagar)}
+                  <div key={sp.id} className="px-4 py-3.5">
+                    {/* Linha 1: nome + resultado */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground text-sm truncate">{sp.players?.name}</span>
+                          <span className="font-mono-numbers text-xs bg-white/5 rounded px-1.5 py-0.5 text-muted-foreground flex-shrink-0">
+                            {sp.buyin_count}×
                           </span>
-                        )}
-                        {status === 'closed' && acertoFinal !== 0 && isPaid && (
-                          <span className="text-xs text-emerald-400 flex items-center gap-0.5">
-                            <CheckCircle2 className="h-3 w-3" /> Acertado
-                          </span>
-                        )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          compra {formatBRL(Number(sp.soma_compra))}
+                          {sp.soma_ganho > 0 && <> · ganho {formatBRL(Number(sp.soma_ganho))}</>}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>compra {formatBRL(Number(sp.soma_compra))}</span>
-                        {sp.soma_ganho > 0 && <span>ganho {formatBRL(Number(sp.soma_ganho))}</span>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className={cn(
-                        'font-mono-numbers font-semibold text-sm min-w-[60px] text-right',
+                        'font-mono-numbers font-semibold text-sm text-right flex-shrink-0 pt-0.5',
                         acertoFinal > 0 ? 'positive' : acertoFinal < 0 ? 'negative' : 'text-muted-foreground'
                       )}>
                         {formatBRL(acertoFinal)}
                       </span>
-                      {isAdmin && status === 'closed' && acertoFinal !== 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleTogglePaid(sp.id, isPaid)}
-                          className={cn(
-                            'h-8 px-2 text-xs font-medium transition-colors',
-                            isPaid
-                              ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-white/5 border border-border/50'
+                    </div>
+
+                    {/* Linha 2: avisos + ações */}
+                    {(hasChips || hasActions) && (
+                      <div className="mt-2 flex items-center justify-between gap-2 min-h-9">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          {faltaPagar > 0 && (
+                            <span className="text-xs text-amber-400 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3 flex-shrink-0" /> faltam {formatBRL(faltaPagar)}
+                            </span>
                           )}
-                        >
-                          {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : (acertoFinal > 0 ? 'Pagar' : 'Cobrar')}
-                        </Button>
-                      )}
-                      {acertoFinal < 0 && pixConfig.pix_static_code && (status === 'active' || status === 'closed') && (
-                        <PixPayButton amount={-acertoFinal} pixStaticCode={pixConfig.pix_static_code} />
-                      )}
-                      {isAdmin && (status === 'active' || status === 'closed') && (
-                        <>
-                          <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} values={values} />
-                          {status === 'active' && (
-                            <Button variant="ghost" size="icon"
-                              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleRemovePlayer(sp.id)}>
-                              <Trash2 className="h-4 w-4" />
+                          {status === 'closed' && acertoFinal !== 0 && isPaid && (
+                            <span className="text-xs text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Acertado
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {isAdmin && status === 'closed' && acertoFinal !== 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTogglePaid(sp.id, isPaid)}
+                              className={cn(
+                                'h-9 px-3 text-xs font-medium transition-colors',
+                                isPaid
+                                  ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5 border border-border/50'
+                              )}
+                            >
+                              {isPaid ? <CheckCircle2 className="h-3.5 w-3.5" /> : (acertoFinal > 0 ? 'Pagar' : 'Cobrar')}
                             </Button>
                           )}
-                        </>
-                      )}
-                    </div>
+                          {acertoFinal < 0 && pixConfig.pix_static_code && (status === 'active' || status === 'closed') && (
+                            <PixPayButton amount={-acertoFinal} pixStaticCode={pixConfig.pix_static_code} />
+                          )}
+                          {isAdmin && (status === 'active' || status === 'closed') && (
+                            <>
+                              <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} values={values} />
+                              {status === 'active' && (
+                                <Button variant="ghost" size={armedRemove === sp.id ? 'sm' : 'icon'}
+                                  className={cn(
+                                    'h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10',
+                                    armedRemove === sp.id ? 'px-2.5 text-xs text-destructive bg-destructive/10' : 'w-9'
+                                  )}
+                                  onClick={() => handleRemovePlayer(sp.id)}>
+                                  {armedRemove === sp.id ? 'Remover?' : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}

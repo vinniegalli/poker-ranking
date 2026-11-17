@@ -73,7 +73,7 @@ export function RankingTable({ data }: RankingTableProps) {
                     )}
                   </button>
                   <p className="text-xs text-muted-foreground sm:hidden mt-0.5">
-                    {row.participacoes} sessões
+                    {row.participacoes} {row.participacoes === 1 ? 'sessão' : 'sessões'}
                   </p>
                 </div>
 

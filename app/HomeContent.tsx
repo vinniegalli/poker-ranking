@@ -114,21 +114,11 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {latestClosedSessionId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRecapOpen(true)}
-              className="border-border text-muted-foreground hover:text-foreground flex-1 sm:flex-none"
-            >
-              <PartyPopper className="h-4 w-4 mr-2" />
-              Resumo da última sessão
-            </Button>
-          )}
-
+        {/* Mobile: período em linha inteira + ações lado a lado embaixo.
+            Desktop: tudo numa linha só. */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
           <Select value={period ?? undefined} onValueChange={setPeriod}>
-            <SelectTrigger className="h-10 flex-1 sm:flex-none sm:w-44 bg-card border-border text-sm">
+            <SelectTrigger className="col-span-2 h-10 w-full sm:w-48 bg-card border-border text-sm sm:order-2">
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
@@ -144,20 +134,35 @@ export default function HomePage() {
             </SelectContent>
           </Select>
 
+          {latestClosedSessionId && (
+            <Button
+              variant="outline"
+              onClick={() => setRecapOpen(true)}
+              className={`h-10 border-border text-muted-foreground hover:text-foreground text-sm sm:order-1 ${isAdmin ? '' : 'col-span-2'}`}
+            >
+              <PartyPopper className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="sm:hidden">Última sessão</span>
+              <span className="hidden sm:inline">Resumo da última sessão</span>
+            </Button>
+          )}
+
           {isAdmin && (
-            <DistribuirPremiacaoModal
-              caixaTotal={caixaTotal}
-              onDistribuido={handleDistribuido}
-            />
+            <div className={`sm:order-3 [&>button]:w-full ${latestClosedSessionId ? '' : 'col-span-2'}`}>
+              <DistribuirPremiacaoModal
+                caixaTotal={caixaTotal}
+                onDistribuido={handleDistribuido}
+              />
+            </div>
           )}
         </div>
       </div>
 
-      <div className="grid gap-4 sm:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:gap-6">
         <CaixaWidget
           total={caixaTotal}
           label={periodLabel ? `Caixa · ${periodLabel}` : 'Saldo em Caixa'}
           onSaidaChange={handleSaidaChange}
+          range={range}
         />
 
         {loading || period === null ? (
