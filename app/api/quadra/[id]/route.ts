@@ -24,7 +24,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .select('*, players(id, name)')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Já existe quadra dessa carta neste mês.' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 

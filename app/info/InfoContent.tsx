@@ -43,7 +43,9 @@ export default function InfoContent() {
     const res = await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(draft),
+      // Só os campos desta tela: outras configs (ex.: plano de quadras) são
+      // salvas por outros componentes e não podem ser sobrescritas com cópia velha.
+      body: JSON.stringify(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, draft[k] ?? '']))),
     })
     setSaving(false)
     if (res.ok) {
