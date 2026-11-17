@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { formatBRL } from '@/lib/calculations'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { DateRange, rangeQuery } from '@/lib/periodo'
 
 interface Stat {
   icon: string
@@ -30,15 +31,16 @@ function isNegative(stat: Stat) {
   return stat.type === 'currency' && stat.value < 0
 }
 
-export function StatsSection() {
+export function StatsSection({ range = null, periodLabel = null }: { range?: DateRange | null; periodLabel?: string | null }) {
   const [stats, setStats] = useState<Stat[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/stats')
+    setLoading(true)
+    fetch(`/api/stats${rangeQuery(range)}`)
       .then((r) => r.json())
       .then((d) => { setStats(Array.isArray(d) ? d : []); setLoading(false) })
-  }, [])
+  }, [range?.start, range?.end]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading || stats.length === 0) return null
 
@@ -48,7 +50,9 @@ export function StatsSection() {
         <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">
           Hall da Fama
         </p>
-        <p className="text-muted-foreground text-xs mt-0.5">Recordes de todas as sessões encerradas</p>
+        <p className="text-muted-foreground text-xs mt-0.5">
+          {periodLabel ? `Recordes de ${periodLabel}` : 'Recordes de todas as sessões encerradas'}
+        </p>
       </div>
 
       <div className="divide-y divide-border/50">

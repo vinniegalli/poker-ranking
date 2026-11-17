@@ -1,12 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { parseRange } from '@/lib/periodo'
 
-export async function GET() {
-  const { data, error } = await supabase
+export async function GET(req: NextRequest) {
+  const range = parseRange(new URL(req.url).searchParams)
+  let query = supabase
     .from('session_players')
     .select('player_id, soma_compra, soma_ganho, buyin_count, players(name), sessions!inner(date, is_closed)')
     .eq('sessions.is_closed', true)
+  if (range) query = query.gte('sessions.date', range.start).lte('sessions.date', range.end)
 
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

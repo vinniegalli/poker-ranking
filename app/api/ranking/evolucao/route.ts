@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { parseRange } from '@/lib/periodo'
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const year = searchParams.get('year')
+  const range = parseRange(new URL(req.url).searchParams)
 
   let sessionsQuery = supabase
     .from('sessions')
@@ -11,10 +11,10 @@ export async function GET(req: NextRequest) {
     .eq('is_closed', true)
     .order('date', { ascending: true })
 
-  if (year) {
+  if (range) {
     sessionsQuery = sessionsQuery
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`)
+      .gte('date', range.start)
+      .lte('date', range.end)
   }
 
   const { data: sessions, error: sErr } = await sessionsQuery

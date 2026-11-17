@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   ArrowLeft, UserPlus, CheckCircle2, Trash2,
-  Copy, Check, PlayCircle, Users, AlertTriangle, Scale, Trophy
+  Copy, Check, PlayCircle, Users, AlertTriangle, Scale, Trophy, Clock, MessageCircle
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -24,7 +24,7 @@ import { PixPayButton } from '@/components/PixPayButton'
 import { useAdmin } from '@/hooks/use-admin'
 import { useToast } from '@/hooks/use-toast'
 import { SessionWithPlayers, Player } from '@/types'
-import { calcAcertoFinal, calcFaltaPagar, calcMvp, formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcEntrada, calcFaltaPagar, calcMvp, formatBRL, sessionValues, MAX_PLAYERS } from '@/lib/calculations'
 import { cn } from '@/lib/utils'
 
 export default function SessionDetailPage() {
@@ -148,6 +148,28 @@ export default function SessionDetailPage() {
     else toast({ title: 'Erro ao remover', variant: 'destructive' })
   }
 
+  /** Fase de convite: admin confirma que recebeu o Pix da entrada (1 buy-in + caixa) */
+  async function handleToggleEntradaPaga(spId: string, paid: boolean) {
+    const res = await fetch(`/api/sessions/${id}/players/${spId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buyins_pagos: paid ? 0 : 1 }),
+    })
+    if (res.ok) {
+      toast({ title: paid ? 'Pagamento desmarcado' : 'Pagamento confirmado!' })
+      fetchSession()
+    } else {
+      toast({ title: 'Erro ao atualizar pagamento', variant: 'destructive' })
+    }
+  }
+
+  function shareInviteWhatsApp() {
+    const url = `${window.location.origin}/sessoes/${id}/confirmar`
+    const dia = session ? format(new Date(session.date + 'T12:00:00'), "EEEE, d/MM", { locale: ptBR }) : ''
+    const text = `🃏 Poker ${dia}! Confirme sua presença e pague a entrada de ${formatBRL(entrada)} pelo link: ${url}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   async function handleTogglePaid(spId: string, currentPaid: boolean) {
     const res = await fetch(`/api/sessions/${id}/players/${spId}`, {
       method: 'PATCH',
@@ -177,8 +199,12 @@ export default function SessionDetailPage() {
 
   const { status } = session
   const date = new Date(session.date + 'T12:00:00')
+  const values = sessionValues(session)
+  const entrada = calcEntrada(values)
+  const maxPlayers = Number(session.max_players) || MAX_PLAYERS
   const confirmedCount = session.session_players.length
-  const isFull = confirmedCount >= 10
+  const paidCount = session.session_players.filter((sp) => (sp.buyins_pagos ?? 0) >= 1).length
+  const isFull = confirmedCount >= maxPlayers
   const totalCompra = session.session_players.reduce((s, sp) => s + Number(sp.soma_compra), 0)
   const totalGanho = session.session_players.reduce((s, sp) => s + Number(sp.soma_ganho), 0)
   const totalCaixa = session.session_players.reduce((s, sp) => s + Number(sp.caixa_contribution), 0)
@@ -239,8 +265,17 @@ export default function SessionDetailPage() {
                 {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={shareInviteWhatsApp}
+              className="mt-3 w-full border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" /> Enviar convite no WhatsApp
+            </Button>
             <p className="text-xs text-muted-foreground/60 mt-2">
-              Mande para os participantes confirmarem presença.
+              Ao confirmar, o jogador vê o Pix de {formatBRL(entrada)} e manda o comprovante no seu WhatsApp.
+              Confirme o pagamento de cada um abaixo.
             </p>
           </div>
 
@@ -252,25 +287,55 @@ export default function SessionDetailPage() {
                 Confirmados
               </div>
               <span className="font-mono-numbers font-bold text-foreground tabular-nums">
-                {confirmedCount}<span className="text-muted-foreground font-normal">/10</span>
+                {confirmedCount}<span className="text-muted-foreground font-normal">/{maxPlayers}</span>
               </span>
             </div>
-            <div className="w-full bg-secondary/50 rounded-full h-1.5 mb-4">
+            <div className="w-full bg-secondary/50 rounded-full h-1.5 mb-2">
               <div
                 className="bg-gold h-1.5 rounded-full transition-all"
-                style={{ width: `${(confirmedCount / 10) * 100}%` }}
+                style={{ width: `${(confirmedCount / maxPlayers) * 100}%` }}
               />
             </div>
+            {confirmedCount > 0 && (
+              <p className="text-xs text-muted-foreground mb-4">
+                <span className="text-emerald-400 font-medium">{paidCount} pagos</span>
+                {confirmedCount - paidCount > 0 && (
+                  <> · <span className="text-amber-400">{confirmedCount - paidCount} aguardando pagamento</span></>
+                )}
+              </p>
+            )}
 
             {confirmedCount > 0 && (
               <div className="space-y-1.5">
-                {session.session_players.map((sp) => (
-                  <div key={sp.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      <span className="text-foreground">{sp.players?.name}</span>
+                {session.session_players.map((sp) => {
+                  const paid = (sp.buyins_pagos ?? 0) >= 1
+                  return (
+                  <div key={sp.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm min-w-0">
+                      {paid
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                        : <Clock className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />}
+                      <span className="text-foreground truncate">{sp.players?.name}</span>
+                      {!paid && !isAdmin && (
+                        <span className="text-[11px] text-amber-400/80">aguardando pgto</span>
+                      )}
                     </div>
                     {isAdmin && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleEntradaPaga(sp.id, paid)}
+                        className={cn(
+                          'h-7 px-2 text-xs font-medium',
+                          paid
+                            ? 'text-emerald-400 hover:bg-emerald-500/10'
+                            : 'text-amber-400 border border-amber-500/30 hover:bg-amber-500/10'
+                        )}
+                        title={paid ? 'Desmarcar pagamento' : 'Confirmar que recebi o Pix'}
+                      >
+                        {paid ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pago</> : 'Confirmar pgto'}
+                      </Button>
                       <Button
                         variant="ghost" size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
@@ -278,9 +343,11 @@ export default function SessionDetailPage() {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
+                      </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -485,7 +552,8 @@ export default function SessionDetailPage() {
                       </div>
                     )}
                     <div className="text-xs text-muted-foreground bg-secondary/40 rounded-lg p-3">
-                      Buy-in: <span className="text-gold font-mono-numbers">R$ 25,00</span>{' '}(R$ 20 pote + R$ 5 caixa)
+                      Entrada: <span className="text-gold font-mono-numbers">{formatBRL(entrada)}</span>{' '}
+                      ({formatBRL(values.buyin_amount)} pote + {formatBRL(values.caixa_fee)} caixa) · rebuy {formatBRL(values.rebuy_amount)}
                     </div>
                     <Button type="submit"
                       disabled={addingPlayer || (addMode === 'existing' && !selectedPlayerId)}
@@ -523,8 +591,8 @@ export default function SessionDetailPage() {
             <div className="rounded-lg card-border bg-card divide-y divide-border/50">
               {session.session_players.map((sp) => {
                 const buyinsPagos = sp.buyins_pagos ?? sp.buyin_count
-                const faltaPagar = calcFaltaPagar(sp.buyin_count, buyinsPagos, Number(sp.caixa_contribution))
-                const acertoFinal = calcAcertoFinal(sp.buyin_count, Number(sp.soma_ganho), buyinsPagos, Number(sp.caixa_contribution))
+                const faltaPagar = calcFaltaPagar(sp.buyin_count, buyinsPagos, Number(sp.caixa_contribution), values)
+                const acertoFinal = calcAcertoFinal(sp.buyin_count, Number(sp.soma_ganho), buyinsPagos, Number(sp.caixa_contribution), values)
                 const isPaid = sp.is_paid ?? false
                 return (
                   <div key={sp.id} className="px-4 py-4 flex items-center gap-3">
@@ -578,7 +646,7 @@ export default function SessionDetailPage() {
                       )}
                       {isAdmin && (status === 'active' || status === 'closed') && (
                         <>
-                          <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} />
+                          <BuyinForm sessionPlayer={sp} onUpdate={fetchSession} values={values} />
                           {status === 'active' && (
                             <Button variant="ghost" size="icon"
                               className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"

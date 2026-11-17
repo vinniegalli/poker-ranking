@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { parseRange, inRange } from '@/lib/periodo'
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const year = searchParams.get('year')
+  const range = parseRange(new URL(req.url).searchParams)
 
   let saidaQuery = supabase.from('caixa_saidas').select('amount, date')
-  if (year) {
+  if (range) {
     saidaQuery = saidaQuery
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`)
+      .gte('date', range.start)
+      .lte('date', range.end)
   }
 
   const [
@@ -38,19 +38,19 @@ export async function GET(req: NextRequest) {
     const raw = row.sessions
     const s = Array.isArray(raw) ? raw[0] : raw
     if (!s || s.status === 'pending') return sum
-    if (year && !s.date.startsWith(year)) return sum
+    if (!inRange(s.date, range)) return sum
     return sum + Number(row.caixa_contribution)
   }, 0)
 
   const totalEntradas = (entradas as { amount: number; date: string }[]).reduce((sum, e) => {
-    if (year && !e.date.startsWith(year)) return sum
+    if (!inRange(e.date, range)) return sum
     return sum + Number(e.amount)
   }, 0)
 
   const totalSaidas = (saidas as { amount: number }[]).reduce((sum, r) => sum + Number(r.amount), 0)
 
   const totalPremiacoes = (premiacoes as { amount: number; date: string }[]).reduce((sum, p) => {
-    if (year && !p.date.startsWith(year)) return sum
+    if (!inRange(p.date, range)) return sum
     return sum + Number(p.amount)
   }, 0)
 

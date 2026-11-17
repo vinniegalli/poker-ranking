@@ -11,6 +11,8 @@ import { SessionRecapModal } from '@/components/SessionRecapModal'
 import { Button } from '@/components/ui/button'
 import { useAdmin } from '@/hooks/use-admin'
 import { RankingRow } from '@/types'
+import { useSeasons } from '@/hooks/use-seasons'
+import { DateRange, findSeasonForDate, rangeQuery, seasonRange, todayISO } from '@/lib/periodo'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PartyPopper } from 'lucide-react'
 
@@ -20,7 +22,9 @@ const LAST_SEEN_RECAP_KEY = 'poker_last_seen_recap'
 
 export default function HomePage() {
   const { isAdmin } = useAdmin()
-  const [selectedYear, setSelectedYear] = useState<string>('all')
+  const { seasons, loaded: seasonsLoaded } = useSeasons()
+  // 'all' | 'season:<id>' | 'year:<aaaa>' — null até as temporadas carregarem
+  const [period, setPeriod] = useState<string | null>(null)
   const [ranking, setRanking] = useState<RankingRow[]>([])
   const [caixaTotal, setCaixaTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -28,8 +32,26 @@ export default function HomePage() {
   const [latestClosedSessionId, setLatestClosedSessionId] = useState<string | null>(null)
   const [recapOpen, setRecapOpen] = useState(false)
 
+  // Padrão: temporada em andamento (se houver), senão todos os tempos
+  useEffect(() => {
+    if (!seasonsLoaded || period !== null) return
+    const current = findSeasonForDate(seasons, todayISO())
+    setPeriod(current ? `season:${current.id}` : 'all')
+  }, [seasonsLoaded, seasons, period])
+
+  const selectedSeason = period?.startsWith('season:')
+    ? seasons.find((s) => s.id === period.slice(7)) ?? null
+    : null
+  const selectedYear = period?.startsWith('year:') ? period.slice(5) : null
+  const range: DateRange | null = selectedSeason
+    ? seasonRange(selectedSeason)
+    : selectedYear
+      ? { start: `${selectedYear}-01-01`, end: `${selectedYear}-12-31` }
+      : null
+  const periodLabel = selectedSeason?.name ?? selectedYear ?? null
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchData() }, [selectedYear])
+  useEffect(() => { if (period !== null) fetchData() }, [period, seasons])
 
   useEffect(() => {
     fetch('/api/sessions')
@@ -46,7 +68,7 @@ export default function HomePage() {
 
   async function fetchData() {
     setLoading(true)
-    const yearParam = selectedYear !== 'all' ? `?year=${selectedYear}` : ''
+    const yearParam = rangeQuery(range)
 
     const [rankRes, caixaRes] = await Promise.all([
       fetch(`/api/ranking${yearParam}`),
@@ -81,10 +103,14 @@ export default function HomePage() {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-xl font-bold text-foreground tracking-tight">
-            Ranking Geral
+            {periodLabel ? `Ranking · ${periodLabel}` : 'Ranking Geral'}
           </h1>
           <p className="text-muted-foreground mt-0.5 text-xs">
-            Sessões encerradas
+            {selectedSeason
+              ? selectedSeason.end_date
+                ? 'Temporada encerrada'
+                : 'Temporada em andamento · sessões encerradas'
+              : 'Sessões encerradas'}
           </p>
         </div>
 
@@ -101,14 +127,19 @@ export default function HomePage() {
             </Button>
           )}
 
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="h-10 flex-1 sm:flex-none sm:w-36 bg-card border-border text-sm">
+          <Select value={period ?? undefined} onValueChange={setPeriod}>
+            <SelectTrigger className="h-10 flex-1 sm:flex-none sm:w-44 bg-card border-border text-sm">
               <SelectValue placeholder="Período" />
             </SelectTrigger>
             <SelectContent className="bg-card border-border">
-              <SelectItem value="all">Todos os anos</SelectItem>
+              {seasons.map((s) => (
+                <SelectItem key={s.id} value={`season:${s.id}`}>
+                  {s.name}{!s.end_date && ' (atual)'}
+                </SelectItem>
+              ))}
+              <SelectItem value="all">Todos os tempos</SelectItem>
               {years.map((y) => (
-                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                <SelectItem key={y} value={`year:${y}`}>Ano {y}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -125,11 +156,11 @@ export default function HomePage() {
       <div className="grid gap-4 sm:gap-6">
         <CaixaWidget
           total={caixaTotal}
-          label={selectedYear !== 'all' ? `Caixa ${selectedYear}` : 'Saldo em Caixa'}
+          label={periodLabel ? `Caixa · ${periodLabel}` : 'Saldo em Caixa'}
           onSaidaChange={handleSaidaChange}
         />
 
-        {loading ? (
+        {loading || period === null ? (
           <div className="rounded-lg card-border bg-card p-12 text-center text-muted-foreground text-sm">
             Carregando ranking...
           </div>
@@ -139,13 +170,13 @@ export default function HomePage() {
             <PrevisaoSection
               ranking={ranking}
               caixaTotal={caixaTotal}
-              year={selectedYear !== 'all' ? selectedYear : undefined}
+              range={range}
             />
           </>
         )}
 
         <PremiacoesSection refreshKey={premiacoesKey} onDeleted={fetchData} />
-        <StatsSection />
+        <StatsSection range={range} periodLabel={periodLabel} />
       </div>
 
       <SessionRecapModal sessionId={latestClosedSessionId} open={recapOpen} onClose={closeRecap} />

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getIsAdmin, setAdmin, onAdminChange } from '@/lib/admin'
+import { getIsAdmin, setAdmin, onAdminChange, verifyAdmin } from '@/lib/admin'
 
 export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState(false)
@@ -9,6 +9,7 @@ export function useAdmin() {
   useEffect(() => {
     setIsAdmin(getIsAdmin())
     const unsub = onAdminChange((v) => setIsAdmin(v))
+    verifyAdmin()
     return unsub
   }, [])
 

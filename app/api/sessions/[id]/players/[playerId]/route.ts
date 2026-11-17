@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-server'
-import { calcSomaCompra } from '@/lib/calculations'
+import { calcSomaCompra, sessionValues } from '@/lib/calculations'
 
 export async function PATCH(
   req: NextRequest,
@@ -19,8 +19,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'buyin_count inválido' }, { status: 400 })
     }
     patch.buyin_count = buyinCount
-    // soma_compra é sempre derivado do buyin_count no servidor, nunca aceito do cliente
-    patch.soma_compra = calcSomaCompra(buyinCount)
+    // soma_compra é sempre derivado do buyin_count + valores da sessão no servidor,
+    // nunca aceito do cliente
+    const { data: session, error: sErr } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', params.id)
+      .single()
+    if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 })
+    patch.soma_compra = calcSomaCompra(buyinCount, sessionValues(session))
   }
 
   if (body.soma_ganho !== undefined) {

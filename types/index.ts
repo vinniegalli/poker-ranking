@@ -10,6 +10,22 @@ export interface Session {
   notes: string | null
   is_closed: boolean
   status: 'pending' | 'active' | 'closed'
+  // Valores da sessão (migração 01). Opcionais para tolerar dados antigos.
+  buyin_amount?: number
+  rebuy_amount?: number
+  caixa_fee?: number
+  max_players?: number
+  created_at: string
+}
+
+export interface Season {
+  id: string
+  name: string
+  start_date: string
+  end_date: string | null
+  buyin_amount: number
+  rebuy_amount: number
+  caixa_fee: number
   created_at: string
 }
 

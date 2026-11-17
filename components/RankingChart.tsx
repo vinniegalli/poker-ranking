@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { EvolucaoData } from '@/types'
 import { formatBRL } from '@/lib/calculations'
+import { DateRange, rangeQuery } from '@/lib/periodo'
 
 const PLAYER_COLORS = [
   '#C9A84C', // gold
@@ -26,7 +27,7 @@ const PLAYER_COLORS = [
 ]
 
 interface RankingChartProps {
-  year?: string
+  range?: DateRange | null
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,21 +55,21 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
-export function RankingChart({ year }: RankingChartProps) {
+export function RankingChart({ range = null }: RankingChartProps) {
   const [evolucao, setEvolucao] = useState<EvolucaoData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchEvolucao() {
       setLoading(true)
-      const url = year ? `/api/ranking/evolucao?year=${year}` : '/api/ranking/evolucao'
+      const url = `/api/ranking/evolucao${rangeQuery(range)}`
       const res = await fetch(url)
       const data = await res.json()
       setEvolucao(data)
       setLoading(false)
     }
     fetchEvolucao()
-  }, [year])
+  }, [range?.start, range?.end]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (

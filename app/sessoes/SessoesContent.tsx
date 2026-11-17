@@ -16,6 +16,16 @@ import {
 import { Session } from '@/types'
 import { Plus, CalendarDays } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useSeasons } from '@/hooks/use-seasons'
+import { findSeasonForDate } from '@/lib/periodo'
+import { DEFAULT_VALUES, MAX_PLAYERS, calcEntrada, formatBRL, sessionValues } from '@/lib/calculations'
+
+function toMoneyStr(n: number) {
+  return String(n).replace('.', ',')
+}
+function parseMoney(s: string) {
+  return parseFloat(s.replace(/\./g, '').replace(',', '.'))
+}
 
 // CalendarDays used only in empty state
 
@@ -31,6 +41,33 @@ export default function SessoesPage() {
   const [creating, setCreating] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const { seasons } = useSeasons()
+  const [editValues, setEditValues] = useState(false)
+  const [vals, setVals] = useState({
+    buyin: toMoneyStr(DEFAULT_VALUES.buyin_amount),
+    rebuy: toMoneyStr(DEFAULT_VALUES.rebuy_amount),
+    caixa: toMoneyStr(DEFAULT_VALUES.caixa_fee),
+    max: String(MAX_PLAYERS),
+  })
+
+  // Ao escolher a data, puxa os valores padrão da temporada daquela data
+  useEffect(() => {
+    if (!newDate) return
+    const v = sessionValues(findSeasonForDate(seasons, newDate))
+    setVals((cur) => ({
+      ...cur,
+      buyin: toMoneyStr(v.buyin_amount),
+      rebuy: toMoneyStr(v.rebuy_amount),
+      caixa: toMoneyStr(v.caixa_fee),
+    }))
+  }, [newDate, seasons])
+
+  const parsedVals = sessionValues({
+    buyin_amount: parseMoney(vals.buyin),
+    rebuy_amount: parseMoney(vals.rebuy),
+    caixa_fee: parseMoney(vals.caixa),
+  })
+  const seasonForDate = newDate ? findSeasonForDate(seasons, newDate) : undefined
 
   useEffect(() => {
     fetchSessions()
@@ -50,7 +87,13 @@ export default function SessoesPage() {
     const res = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: newDate, notes: newNotes || null, status: inviteMode ? 'pending' : 'active' }),
+      body: JSON.stringify({
+        date: newDate,
+        notes: newNotes || null,
+        status: inviteMode ? 'pending' : 'active',
+        ...parsedVals,
+        max_players: parseInt(vals.max, 10) || MAX_PLAYERS,
+      }),
     })
     setCreating(false)
     if (res.ok) {
@@ -61,7 +104,8 @@ export default function SessoesPage() {
       setInviteMode(false)
       fetchSessions()
     } else {
-      toast({ title: 'Erro ao criar sessão', variant: 'destructive' })
+      const err = await res.json().catch(() => ({}))
+      toast({ title: err.error ?? 'Erro ao criar sessão', variant: 'destructive' })
     }
   }
 
@@ -98,7 +142,7 @@ export default function SessoesPage() {
                 Nova Sessão
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-sm card-border bg-card">
+            <DialogContent className="sm:max-w-sm card-border bg-card max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display text-foreground">Nova Sessão</DialogTitle>
               </DialogHeader>
@@ -122,6 +166,45 @@ export default function SessoesPage() {
                     placeholder="Ex: Aniversário do João..."
                     className="bg-secondary border-border"
                   />
+                </div>
+                <div className="rounded-lg bg-secondary/50 px-4 py-3 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">Valores</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Buy-in {formatBRL(parsedVals.buyin_amount)} · Rebuy {formatBRL(parsedVals.rebuy_amount)} · Caixa {formatBRL(parsedVals.caixa_fee)} · {vals.max} jogadores
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        Entrada: {formatBRL(calcEntrada(parsedVals))}
+                        {seasonForDate && ` · padrão da ${seasonForDate.name}`}
+                      </p>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" className="text-xs flex-shrink-0"
+                      onClick={() => setEditValues((v) => !v)}>
+                      {editValues ? 'Ok' : 'Alterar'}
+                    </Button>
+                  </div>
+                  {editValues && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        ['buyin', 'Buy-in (R$)'],
+                        ['rebuy', 'Rebuy (R$)'],
+                        ['caixa', 'Taxa caixa (R$)'],
+                        ['max', 'Máx. jogadores'],
+                      ] as const).map(([k, label]) => (
+                        <div key={k} className="space-y-1">
+                          <Label className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</Label>
+                          <Input
+                            type="text"
+                            inputMode={k === 'max' ? 'numeric' : 'decimal'}
+                            value={vals[k]}
+                            onChange={(e) => setVals((v) => ({ ...v, [k]: e.target.value.replace(/[^0-9.,]/g, '') }))}
+                            className="bg-secondary border-border h-10 font-mono-numbers"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-start gap-3 rounded-lg bg-secondary/50 px-4 py-3">
                   <button

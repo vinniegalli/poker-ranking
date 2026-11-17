@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ADMIN_COOKIE_MAX_AGE, ADMIN_COOKIE_NAME, createAdminSessionToken } from '@/lib/admin-server'
+import crypto from 'crypto'
+import { ADMIN_COOKIE_MAX_AGE, ADMIN_COOKIE_NAME, createAdminSessionToken, isAdminRequest } from '@/lib/admin-server'
+
+export const dynamic = 'force-dynamic'
+
+/** Diz se o cookie de admin (httpOnly, 30 dias) deste navegador ainda é válido */
+export async function GET(req: NextRequest) {
+  return NextResponse.json({ admin: isAdminRequest(req) }, { headers: { 'Cache-Control': 'no-store' } })
+}
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json()
@@ -9,7 +17,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Admin password not configured' }, { status: 500 })
   }
 
-  if (password !== adminPassword) {
+  // Comparação em tempo constante (via hash, pra igualar tamanhos) + atraso em
+  // senha errada pra deixar tentativa por força bruta bem mais lenta.
+  const hash = (v: string) => crypto.createHash('sha256').update(v).digest()
+  const ok = crypto.timingSafeEqual(hash(String(password ?? '')), hash(adminPassword))
+  if (!ok) {
+    await new Promise((r) => setTimeout(r, 800))
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
   }
 

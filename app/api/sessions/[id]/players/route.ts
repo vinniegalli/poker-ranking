@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { calcSomaCompra, calcCaixaContribution } from '@/lib/calculations'
-
-const MAX_PLAYERS = 10
+import { calcSomaCompra, calcCaixaContribution, sessionValues, MAX_PLAYERS as DEFAULT_MAX } from '@/lib/calculations'
+import { isAdminRequest } from '@/lib/admin-server'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { player_id } = await req.json()
@@ -10,6 +9,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!player_id) {
     return NextResponse.json({ error: 'player_id is required' }, { status: 400 })
   }
+
+  const { data: session, error: sErr } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('id', params.id)
+    .single()
+  if (sErr || !session) return NextResponse.json({ error: 'Sessão não encontrada' }, { status: 404 })
+
+  // O link de convite é público: sem login de admin, só dá pra entrar em
+  // sessão que ainda está aguardando confirmações.
+  const isAdmin = isAdminRequest(req)
+  if (!isAdmin && session.status !== 'pending') {
+    return NextResponse.json({ error: 'As confirmações desta sessão foram encerradas.' }, { status: 403 })
+  }
+  if (session.status === 'closed') {
+    return NextResponse.json({ error: 'Sessão encerrada.' }, { status: 400 })
+  }
+
+  const MAX_PLAYERS = Number(session.max_players) || DEFAULT_MAX
+  const values = sessionValues(session)
 
   // Verifica duplicata
   const { data: existing } = await supabase
@@ -36,8 +55,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const buyin_count = 1
-  const soma_compra = calcSomaCompra(buyin_count)
-  const caixa_contribution = calcCaixaContribution()
+  const soma_compra = calcSomaCompra(buyin_count, values)
+  const caixa_contribution = calcCaixaContribution(values)
 
   const { data, error } = await supabase
     .from('session_players')

@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { calcMvp } from '@/lib/calculations'
 import { aggregateByPlayer, sortBySaldo } from '@/lib/ranking'
 import { Badge, computeBadges, PlayerSessionRow } from '@/lib/badges'
+import { listSeasons } from '@/lib/seasons-server'
+import { findSeasonForDate, seasonRange } from '@/lib/periodo'
 
 interface Row extends PlayerSessionRow {
   session_id: string
@@ -20,7 +22,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Sessão ainda não foi encerrada' }, { status: 400 })
   }
 
+  // Posições no ranking antes/depois são calculadas dentro da temporada da
+  // sessão; sem temporada cadastrada, usa o ano (comportamento antigo).
+  const season = findSeasonForDate(await listSeasons(), session.date)
   const year = session.date.slice(0, 4)
+  const range = season ? seasonRange(season) : { start: `${year}-01-01`, end: `${year}-12-31` }
 
   const [
     { data: spData, error: spErr },
@@ -31,8 +37,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       .from('session_players')
       .select('session_id, player_id, buyin_count, soma_compra, soma_ganho, players(name), sessions!inner(date, is_closed)')
       .eq('sessions.is_closed', true)
-      .gte('sessions.date', `${year}-01-01`)
-      .lte('sessions.date', `${year}-12-31`),
+      .gte('sessions.date', range.start)
+      .lte('sessions.date', range.end),
     supabase.from('premiacoes').select('player_id').not('player_id', 'is', null),
     supabase.from('quadra_mes').select('claimed_by').not('claimed_by', 'is', null),
   ])

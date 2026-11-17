@@ -1,20 +1,55 @@
-export const BUYIN_AMOUNT = 20   // valor por buy-in (vai pro pote)
+/** Valores padrão (os que valiam antes de existirem valores por sessão) */
+export const BUYIN_AMOUNT = 20   // valor do 1º buy-in (vai pro pote)
+export const REBUY_AMOUNT = 20   // valor de cada rebuy (vai pro pote)
 export const CAIXA_FEE = 5       // taxa de caixa (fixo por jogador, não por buy-in)
+export const MAX_PLAYERS = 10
 
-/** Valor total que o jogador colocou no pote (sem caixa) */
-export function calcSomaCompra(buyinCount: number): number {
-  if (buyinCount <= 0) return 0
-  return buyinCount * BUYIN_AMOUNT
+/** Valores financeiros de uma sessão (gravados na sessão, herdados da temporada) */
+export interface SessionValues {
+  buyin_amount: number
+  rebuy_amount: number
+  caixa_fee: number
 }
 
-/** Taxa de caixa: fixo R$5 por jogador por sessão */
-export function calcCaixaContribution(): number {
-  return CAIXA_FEE
+export const DEFAULT_VALUES: SessionValues = {
+  buyin_amount: BUYIN_AMOUNT,
+  rebuy_amount: REBUY_AMOUNT,
+  caixa_fee: CAIXA_FEE,
+}
+
+function num(v: unknown, fallback: number): number {
+  const n = Number(v)
+  return v === null || v === undefined || !Number.isFinite(n) ? fallback : n
+}
+
+/** Extrai os valores de uma sessão/temporada, caindo nos padrões se faltar algo */
+export function sessionValues(src?: Partial<Record<keyof SessionValues, unknown>> | null): SessionValues {
+  return {
+    buyin_amount: num(src?.buyin_amount, BUYIN_AMOUNT),
+    rebuy_amount: num(src?.rebuy_amount, REBUY_AMOUNT),
+    caixa_fee: num(src?.caixa_fee, CAIXA_FEE),
+  }
+}
+
+/** Valor total que o jogador colocou no pote (sem caixa): 1º buy-in + rebuys */
+export function calcSomaCompra(buyinCount: number, v: SessionValues = DEFAULT_VALUES): number {
+  if (buyinCount <= 0) return 0
+  return v.buyin_amount + (buyinCount - 1) * v.rebuy_amount
+}
+
+/** Taxa de caixa: fixa por jogador por sessão */
+export function calcCaixaContribution(v: SessionValues = DEFAULT_VALUES): number {
+  return v.caixa_fee
 }
 
 /** Total desembolsado pelo jogador (pote + caixa) — só pra exibição */
-export function calcTotalPago(buyinCount: number): number {
-  return calcSomaCompra(buyinCount) + CAIXA_FEE
+export function calcTotalPago(buyinCount: number, v: SessionValues = DEFAULT_VALUES, caixaFee: number = v.caixa_fee): number {
+  return calcSomaCompra(buyinCount, v) + caixaFee
+}
+
+/** Valor da entrada (1 buy-in + caixa) — o que o jogador paga ao confirmar presença */
+export function calcEntrada(v: SessionValues = DEFAULT_VALUES): number {
+  return calcTotalPago(1, v)
 }
 
 /**
@@ -22,14 +57,14 @@ export function calcTotalPago(buyinCount: number): number {
  * a primeira compra, então só conta como paga quando ao menos 1 buy-in foi pago
  * (0 buy-ins pagos = nada foi pago, nem o caixa).
  */
-export function calcValorPago(buyinsPagos: number, caixaFee: number = CAIXA_FEE): number {
+export function calcValorPago(buyinsPagos: number, caixaFee: number = CAIXA_FEE, v: SessionValues = DEFAULT_VALUES): number {
   if (buyinsPagos <= 0) return 0
-  return calcSomaCompra(buyinsPagos) + caixaFee
+  return calcSomaCompra(buyinsPagos, v) + caixaFee
 }
 
 /** Quanto ainda falta pagar (pote + caixa) considerando as fichas já pagas */
-export function calcFaltaPagar(buyinCount: number, buyinsPagos: number, caixaFee: number = CAIXA_FEE): number {
-  return calcTotalPago(buyinCount) - calcValorPago(buyinsPagos, caixaFee)
+export function calcFaltaPagar(buyinCount: number, buyinsPagos: number, caixaFee: number = CAIXA_FEE, v: SessionValues = DEFAULT_VALUES): number {
+  return calcTotalPago(buyinCount, v, caixaFee) - calcValorPago(buyinsPagos, caixaFee, v)
 }
 
 /**
@@ -37,8 +72,8 @@ export function calcFaltaPagar(buyinCount: number, buyinsPagos: number, caixaFee
  * (pote + caixa) é descontado do que o jogador tem a receber. Positivo = a
  * banca deve pagar ao jogador; negativo = o jogador ainda deve à banca.
  */
-export function calcAcertoFinal(buyinCount: number, somaGanho: number, buyinsPagos: number, caixaFee: number = CAIXA_FEE): number {
-  return somaGanho - calcFaltaPagar(buyinCount, buyinsPagos, caixaFee)
+export function calcAcertoFinal(buyinCount: number, somaGanho: number, buyinsPagos: number, caixaFee: number = CAIXA_FEE, v: SessionValues = DEFAULT_VALUES): number {
+  return somaGanho - calcFaltaPagar(buyinCount, buyinsPagos, caixaFee, v)
 }
 
 export interface SessionResult {

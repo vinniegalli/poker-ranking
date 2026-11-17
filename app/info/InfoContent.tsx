@@ -8,12 +8,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { QuadraDoMes } from '@/components/QuadraDoMes'
 import { BadgeLegend } from '@/components/BadgeLegend'
+import { TemporadasAdmin } from '@/components/TemporadasAdmin'
+import { normalizeWhatsapp } from '@/lib/whatsapp'
 import { Pencil, Check, X } from 'lucide-react'
 
 const DEFAULTS = {
   info_title: 'Regras e Informações',
   info_content: 'Buy-in: R$ 25,00 (R$ 20 pote + R$ 5 caixa)\nRe-buy: R$ 20,00\nMáximo 10 jogadores por mesa\n\nO caixa acumulado é distribuído ao final do ano.',
   pix_static_code: '',
+  admin_whatsapp: '',
 }
 
 export default function InfoContent() {
@@ -164,14 +167,41 @@ export default function InfoContent() {
                 Gere no seu banco um código Pix de cobrança sem valor fixo e cole aqui — o app só insere
                 o valor de cada acerto nele, sem mexer no resto.
               </p>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider block pt-3">
+                Seu WhatsApp (recebe os comprovantes)
+              </Label>
+              <Input
+                type="tel"
+                inputMode="tel"
+                value={draft.admin_whatsapp}
+                onChange={(e) => setDraft((d) => ({ ...d, admin_whatsapp: e.target.value }))}
+                placeholder="(11) 99999-9999"
+                className="bg-secondary border-border h-11"
+              />
+              <p className="text-xs text-muted-foreground/70">
+                Fica visível para quem abre o link de convite (é para onde mandam o comprovante).
+              </p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {config.pix_static_code
-                ? 'Código Pix configurado.'
-                : 'Nenhum código Pix configurado ainda — clique em editar para adicionar.'}
-            </p>
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                {config.pix_static_code
+                  ? 'Código Pix configurado.'
+                  : 'Nenhum código Pix configurado ainda — clique em editar para adicionar.'}
+              </p>
+              <p>
+                {config.admin_whatsapp
+                  ? `WhatsApp para comprovantes: +${normalizeWhatsapp(config.admin_whatsapp)}`
+                  : 'WhatsApp para comprovantes não configurado.'}
+              </p>
+            </div>
           )}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="mt-6">
+          <TemporadasAdmin />
         </div>
       )}
 

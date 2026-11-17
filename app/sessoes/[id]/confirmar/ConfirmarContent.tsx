@@ -4,14 +4,34 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CheckCircle2, Users, UserPlus, Lock, Search, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Users, UserPlus, Lock, Search, AlertTriangle, Clock, QrCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Session, SessionPlayer, Player } from '@/types'
 import { normalizeName } from '@/lib/player-names'
 import { cn } from '@/lib/utils'
+import { calcEntrada, sessionValues, MAX_PLAYERS as DEFAULT_MAX } from '@/lib/calculations'
+import { EntradaPagamentoDialog } from '@/components/EntradaPagamentoDialog'
 
-const MAX_PLAYERS = 10
+/** Lembra neste aparelho quem confirmou, pra mostrar o status do pagamento ao voltar no link */
+function storageKey(sessionId: string) {
+  return `stacks_confirmacao_${sessionId}`
+}
+function loadSaved(sessionId: string): { player_id: string; name: string } | null {
+  try {
+    const raw = localStorage.getItem(storageKey(sessionId))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+function saveConfirmation(sessionId: string, player_id: string, name: string) {
+  try {
+    localStorage.setItem(storageKey(sessionId), JSON.stringify({ player_id, name }))
+  } catch {
+    // modo privado / storage bloqueado: segue sem lembrar
+  }
+}
 
 type SP = SessionPlayer & { players: Player }
 type SessionData = Session & { session_players: SP[] }
@@ -25,6 +45,9 @@ export default function ConfirmarContent() {
   const [loading, setLoading] = useState(true)
   const [confirmed, setConfirmed] = useState(false)
   const [confirmedName, setConfirmedName] = useState('')
+  const [confirmedPlayerId, setConfirmedPlayerId] = useState('')
+  const [config, setConfig] = useState<Record<string, string>>({})
+  const [payOpen, setPayOpen] = useState(false)
 
   // Seleção do jogador
   const [mode, setMode] = useState<'select' | 'new'>('select')
@@ -39,15 +62,31 @@ export default function ConfirmarContent() {
   const [exactDuplicate, setExactDuplicate] = useState(false)
 
   useEffect(() => {
-    fetchData()
-  }, [id])
+    fetchData(true)
+    fetch('/api/config').then((r) => r.ok ? r.json() : {}).then(setConfig).catch(() => {})
+    // Atualiza o status do pagamento quando o jogador volta pra aba (ex.: depois do WhatsApp)
+    const onFocus = () => fetchData()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function fetchData() {
+  async function fetchData(restore = false) {
     const [sessionRes, playersRes] = await Promise.all([
       fetch(`/api/sessions/${id}`),
       fetch('/api/players'),
     ])
-    if (sessionRes.ok) setSession(await sessionRes.json())
+    if (sessionRes.ok) {
+      const data: SessionData = await sessionRes.json()
+      setSession(data)
+      if (restore) {
+        const saved = loadSaved(id)
+        if (saved && data.session_players.some((sp) => sp.player_id === saved.player_id)) {
+          setConfirmed(true)
+          setConfirmedName(saved.name)
+          setConfirmedPlayerId(saved.player_id)
+        }
+      }
+    }
     if (playersRes.ok) setAllPlayers(await playersRes.json())
     setLoading(false)
   }
@@ -72,8 +111,11 @@ export default function ConfirmarContent() {
 
     if (res.ok) {
       setConfirmedName(name)
+      setConfirmedPlayerId(playerId)
       setConfirmed(true)
+      saveConfirmation(id, playerId, name)
       resetDuplicateCheck()
+      setPayOpen(true)
       fetchData()
     } else {
       const err = await res.json()
@@ -145,6 +187,12 @@ export default function ConfirmarContent() {
   }
 
   const date = new Date(session.date + 'T12:00:00')
+  const MAX_PLAYERS = Number(session.max_players) || DEFAULT_MAX
+  const entrada = calcEntrada(sessionValues(session))
+  const sessionLabel = format(date, "EEEE, d/MM", { locale: ptBR })
+  const isPaid = (sp: SP) => (sp.buyins_pagos ?? 0) >= 1
+  const mySp = session.session_players.find((sp) => sp.player_id === confirmedPlayerId)
+  const myPaid = mySp ? isPaid(mySp) : false
   const confirmedPlayers = session.session_players
   const count = confirmedPlayers.length
   const isFull = count >= MAX_PLAYERS
@@ -176,6 +224,10 @@ export default function ConfirmarContent() {
             {format(date, 'yyyy')}
             {session.notes && ` · ${session.notes}`}
           </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Entrada: <span className="text-gold font-mono-numbers font-semibold">{entrada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+            <span className="text-muted-foreground/70"> · pago via Pix na confirmação</span>
+          </p>
 
           {/* Counter */}
           <div className="mt-4 flex items-center gap-2">
@@ -199,8 +251,11 @@ export default function ConfirmarContent() {
             <div className="space-y-2">
               {confirmedPlayers.map((sp) => (
                 <div key={sp.id} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  {isPaid(sp)
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                    : <Clock className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />}
                   <span className="text-foreground">{sp.players?.name}</span>
+                  {!isPaid(sp) && <span className="text-[11px] text-amber-400/80">aguardando pagamento</span>}
                 </div>
               ))}
             </div>
@@ -208,7 +263,34 @@ export default function ConfirmarContent() {
         )}
 
         {/* Confirmation form or states */}
-        {isUnavailable ? (
+        {confirmed ? (
+          <div className="rounded-xl card-border bg-card px-5 py-6 text-center">
+            {myPaid ? (
+              <>
+                <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
+                <p className="text-foreground font-semibold">Tudo certo, {confirmedName}!</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Pagamento confirmado. Vejo você na mesa! 🃏
+                </p>
+              </>
+            ) : (
+              <>
+                <Clock className="h-10 w-10 text-amber-400 mx-auto mb-3" />
+                <p className="text-foreground font-semibold">Vaga reservada, {confirmedName}!</p>
+                <p className="text-muted-foreground text-sm mt-1 leading-relaxed">
+                  Falta pagar a entrada e mandar o comprovante. O organizador confirma o
+                  pagamento e seu nome fica verde na lista.
+                </p>
+                <Button
+                  onClick={() => setPayOpen(true)}
+                  className="mt-4 w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold"
+                >
+                  <QrCode className="h-4 w-4 mr-2" /> Pagar entrada
+                </Button>
+              </>
+            )}
+          </div>
+        ) : isUnavailable ? (
           <div className="rounded-xl card-border bg-card px-5 py-6 text-center">
             <Lock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-foreground font-medium text-sm">
@@ -224,14 +306,6 @@ export default function ConfirmarContent() {
             <p className="text-foreground font-medium text-sm">Mesa cheia!</p>
             <p className="text-muted-foreground text-xs mt-1">
               Os {MAX_PLAYERS} lugares estão preenchidos.
-            </p>
-          </div>
-        ) : confirmed ? (
-          <div className="rounded-xl card-border bg-card px-5 py-6 text-center">
-            <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
-            <p className="text-foreground font-semibold">Presença confirmada!</p>
-            <p className="text-muted-foreground text-sm mt-1">
-              Vejo você na mesa, <span className="text-foreground font-medium">{confirmedName}</span>! 🃏
             </p>
           </div>
         ) : (
@@ -383,11 +457,21 @@ export default function ConfirmarContent() {
               disabled={submitting || (mode === 'select' && !selectedId) || (mode === 'new' && !newName.trim())}
               className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold text-base"
             >
-              {submitting ? 'Confirmando...' : 'Confirmar presença'}
+              {submitting ? 'Confirmando...' : `Confirmar e pagar ${entrada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`}
             </Button>
           </div>
         )}
       </div>
+
+      <EntradaPagamentoDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        amount={entrada}
+        playerName={confirmedName}
+        sessionLabel={sessionLabel}
+        pixStaticCode={config.pix_static_code}
+        adminWhatsapp={config.admin_whatsapp}
+      />
     </div>
   )
 }

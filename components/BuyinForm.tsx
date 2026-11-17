@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { useAdmin } from '@/hooks/use-admin'
 import { SessionPlayer, Player } from '@/types'
-import { calcAcertoFinal, calcFaltaPagar, calcSomaCompra, calcTotalPago, formatBRL } from '@/lib/calculations'
+import { calcAcertoFinal, calcFaltaPagar, calcSomaCompra, calcTotalPago, formatBRL, DEFAULT_VALUES, SessionValues } from '@/lib/calculations'
 import { useToast } from '@/hooks/use-toast'
 import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 interface BuyinFormProps {
   sessionPlayer: SessionPlayer & { players: Player }
   onUpdate: () => void
+  values?: SessionValues
 }
 
 // Formato brasileiro: "." é separador de milhar, "," é separador decimal
@@ -29,7 +30,7 @@ function parseMoneyStr(s: string): number {
   return parseFloat(normalized) || 0
 }
 
-export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
+export function BuyinForm({ sessionPlayer, onUpdate, values = DEFAULT_VALUES }: BuyinFormProps) {
   const { isAdmin } = useAdmin()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
@@ -74,11 +75,12 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
     }
   }
 
-  const somaCompra = calcSomaCompra(buyinCount)
-  const totalPago = calcTotalPago(buyinCount)
-  const faltaPagar = calcFaltaPagar(buyinCount, buyinsPagos, sessionPlayer.caixa_contribution)
+  const caixaFee = Number(sessionPlayer.caixa_contribution)
+  const somaCompra = calcSomaCompra(buyinCount, values)
+  const totalPago = calcTotalPago(buyinCount, values, caixaFee)
+  const faltaPagar = calcFaltaPagar(buyinCount, buyinsPagos, caixaFee, values)
   const saldo = somaGanho - somaCompra
-  const acertoFinal = calcAcertoFinal(buyinCount, somaGanho, buyinsPagos, sessionPlayer.caixa_contribution)
+  const acertoFinal = calcAcertoFinal(buyinCount, somaGanho, buyinsPagos, caixaFee, values)
 
   return (
     <Dialog open={open} onOpenChange={(v) => {
@@ -211,7 +213,7 @@ export function BuyinForm({ sessionPlayer, onUpdate }: BuyinFormProps) {
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Caixa</span>
-              <span className="font-mono-numbers text-xs">R$5,00 (fixo)</span>
+              <span className="font-mono-numbers text-xs">{formatBRL(caixaFee)} (fixo)</span>
             </div>
             <div className="flex justify-between text-muted-foreground border-b border-border/30 pb-2">
               <span>Total pago</span>

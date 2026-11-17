@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RankingRow } from "@/types";
+import { DateRange, inRange } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 import { BarChart2, Trophy, Pencil } from "lucide-react";
 
@@ -29,12 +30,12 @@ interface Previsao {
 interface Props {
   ranking: RankingRow[];
   caixaTotal: number;
-  year?: string;
+  range?: DateRange | null;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉", "4º", "5º"];
 
-export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
+export function PrevisaoSection({ ranking, caixaTotal, range = null }: Props) {
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
 
@@ -67,7 +68,10 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
       .then((sessions) => {
         setTotalSessions(
           Array.isArray(sessions)
-            ? sessions.filter((s: { is_closed: boolean }) => s.is_closed).length
+            ? sessions.filter(
+                (s: { is_closed: boolean; date: string }) =>
+                  s.is_closed && inRange(s.date, range),
+              ).length
             : 0,
         );
       });
@@ -183,7 +187,7 @@ export function PrevisaoSection({ ranking, caixaTotal, year }: Props) {
 
       {/* Content */}
       {view === "grafico" ? (
-        <RankingChart year={year} />
+        <RankingChart range={range} />
       ) : (
         <div className="rounded-lg card-border bg-card overflow-hidden">
           {loading ? (

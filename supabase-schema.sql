@@ -50,6 +50,9 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE caixa ENABLE ROW LEVEL SECURITY;
 
+-- ⚠️  ATENÇÃO: as políticas abaixo são INSEGURAS (qualquer um com a anon key lê
+-- e escreve tudo). Foram substituídas por supabase/migrations/02_rls_bloquear_anon.sql.
+-- NÃO rode este bloco de novo.
 -- Políticas: leitura pública (anon pode ler)
 CREATE POLICY "Public read players" ON players FOR SELECT USING (true);
 CREATE POLICY "Public read sessions" ON sessions FOR SELECT USING (true);

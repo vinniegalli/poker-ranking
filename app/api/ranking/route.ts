@@ -3,12 +3,10 @@ import { supabase } from '@/lib/supabase'
 import { RankingRow } from '@/types'
 import { calcCurrentStreak } from '@/lib/calculations'
 import { aggregateByPlayer, sortBySaldo } from '@/lib/ranking'
+import { parseRange } from '@/lib/periodo'
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const year = searchParams.get('year')
-  const startDate = searchParams.get('start')
-  const endDate = searchParams.get('end')
+  const range = parseRange(new URL(req.url).searchParams)
 
   let query = supabase
     .from('session_players')
@@ -21,14 +19,10 @@ export async function GET(req: NextRequest) {
     `)
     .eq('sessions.is_closed', true)
 
-  if (year) {
+  if (range) {
     query = query
-      .gte('sessions.date', `${year}-01-01`)
-      .lte('sessions.date', `${year}-12-31`)
-  } else if (startDate && endDate) {
-    query = query
-      .gte('sessions.date', startDate)
-      .lte('sessions.date', endDate)
+      .gte('sessions.date', range.start)
+      .lte('sessions.date', range.end)
   }
 
   const { data, error } = await query
