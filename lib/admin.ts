@@ -63,3 +63,20 @@ export function verifyAdmin(): Promise<void> {
   }
   return verifying
 }
+
+let lastRenew = 0
+
+/**
+ * Renova o cookie de admin (GET /api/auth renova por +30 dias quando válido).
+ * Usado quando o app volta pro primeiro plano: o PWA fica aberto por dias sem
+ * recarregar. Só LIGA o modo admin, nunca desliga — desligar aqui fecharia um
+ * formulário aberto (ex.: admin foi no WhatsApp conferir um Pix) e perderia o
+ * que foi digitado. Se o login tiver vencido, quem trata é o 401 ao salvar.
+ */
+export function renewAdmin(): void {
+  if (!getIsAdmin()) return
+  const now = Date.now()
+  if (now - lastRenew < 60_000) return
+  lastRenew = now
+  fetch('/api/auth', { cache: 'no-store', credentials: 'same-origin' }).catch(() => {})
+}

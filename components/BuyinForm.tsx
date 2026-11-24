@@ -31,9 +31,13 @@ function parseMoneyStr(s: string): number {
 }
 
 export function BuyinForm({ sessionPlayer, onUpdate, values = DEFAULT_VALUES }: BuyinFormProps) {
-  const { isAdmin } = useAdmin()
+  const { isAdmin, login } = useAdmin()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  // Login de admin venceu no meio do jogo: pede a senha aqui mesmo, sem fechar
+  // o formulário nem perder o que foi digitado.
+  const [needsLogin, setNeedsLogin] = useState(false)
+  const [password, setPassword] = useState('')
   const [buyinCount, setBuyinCount] = useState(sessionPlayer.buyin_count)
   const [buyinsPagos, setBuyinsPagos] = useState(sessionPlayer.buyins_pagos ?? sessionPlayer.buyin_count)
   const [somaGanho, setSomaGanho] = useState(sessionPlayer.soma_ganho)
@@ -75,8 +79,12 @@ export function BuyinForm({ sessionPlayer, onUpdate, values = DEFAULT_VALUES }: 
     setLoading(false)
     if (res.ok) {
       toast({ title: 'Atualizado!' })
+      setNeedsLogin(false)
       setOpen(false)
       onUpdate()
+    } else if (res.status === 401) {
+      setNeedsLogin(true)
+      toast({ title: 'Login de admin expirou', description: 'Digite a senha para salvar.', variant: 'destructive' })
     } else {
       // Mostra o motivo real (antes só aparecia "Erro ao atualizar" e não dava pra diagnosticar)
       const body = await res.json().catch(() => ({}))
@@ -86,6 +94,19 @@ export function BuyinForm({ sessionPlayer, onUpdate, values = DEFAULT_VALUES }: 
         variant: 'destructive',
       })
     }
+  }
+
+  async function handleLoginAndSave() {
+    setLoading(true)
+    const ok = await login(password).catch(() => false)
+    setLoading(false)
+    if (!ok) {
+      toast({ title: 'Senha incorreta', variant: 'destructive' })
+      return
+    }
+    setPassword('')
+    setNeedsLogin(false)
+    await handleSave()
   }
 
   const caixaFee = Number(sessionPlayer.caixa_contribution)
@@ -258,13 +279,41 @@ export function BuyinForm({ sessionPlayer, onUpdate, values = DEFAULT_VALUES }: 
             </p>
           </div>
 
-          <Button
-            onClick={handleSave}
-            disabled={loading}
-            className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold text-base"
-          >
-            {loading ? 'Salvando...' : 'Salvar'}
-          </Button>
+          {needsLogin ? (
+            <form
+              className="space-y-2"
+              onSubmit={(e) => { e.preventDefault(); handleLoginAndSave() }}
+            >
+              <Label htmlFor="admin-pass" className="text-amber-400 text-xs">
+                Seu login de admin expirou. Digite a senha para salvar — os valores acima não se perdem.
+              </Label>
+              <Input
+                id="admin-pass"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-secondary border-border text-base h-12"
+                placeholder="Senha de admin"
+                autoFocus
+              />
+              <Button
+                type="submit"
+                disabled={loading || !password}
+                className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold text-base"
+              >
+                {loading ? 'Salvando...' : 'Entrar e salvar'}
+              </Button>
+            </form>
+          ) : (
+            <Button
+              onClick={handleSave}
+              disabled={loading}
+              className="w-full h-12 bg-gold text-felt hover:bg-gold/90 font-semibold text-base"
+            >
+              {loading ? 'Salvando...' : 'Salvar'}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

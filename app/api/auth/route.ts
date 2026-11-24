@@ -4,9 +4,26 @@ import { ADMIN_COOKIE_MAX_AGE, ADMIN_COOKIE_NAME, createAdminSessionToken, isAdm
 
 export const dynamic = 'force-dynamic'
 
-/** Diz se o cookie de admin (httpOnly, 30 dias) deste navegador ainda é válido */
+/**
+ * Diz se o cookie de admin (httpOnly, 30 dias) deste navegador ainda é válido.
+ * Se for, renova por mais 30 dias (sessão deslizante): quem usa o app não é
+ * deslogado no meio de um jogo só porque o login completou 30 dias.
+ */
 export async function GET(req: NextRequest) {
-  return NextResponse.json({ admin: isAdminRequest(req) }, { headers: { 'Cache-Control': 'no-store' } })
+  const admin = isAdminRequest(req)
+  const res = NextResponse.json({ admin }, { headers: { 'Cache-Control': 'no-store' } })
+  if (admin) setAdminCookie(res)
+  return res
+}
+
+function setAdminCookie(res: NextResponse) {
+  res.cookies.set(ADMIN_COOKIE_NAME, createAdminSessionToken(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: ADMIN_COOKIE_MAX_AGE,
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -27,13 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true })
-  res.cookies.set(ADMIN_COOKIE_NAME, createAdminSessionToken(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: ADMIN_COOKIE_MAX_AGE,
-  })
+  setAdminCookie(res)
   return res
 }
 

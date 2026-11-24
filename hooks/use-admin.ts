@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getIsAdmin, setAdmin, onAdminChange, verifyAdmin } from '@/lib/admin'
+import { getIsAdmin, setAdmin, onAdminChange, verifyAdmin, renewAdmin } from '@/lib/admin'
 
 export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState(false)
@@ -10,7 +10,12 @@ export function useAdmin() {
     setIsAdmin(getIsAdmin())
     const unsub = onAdminChange((v) => setIsAdmin(v))
     verifyAdmin()
-    return unsub
+    const onVisible = () => { if (document.visibilityState === 'visible') renewAdmin() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      unsub()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   async function login(password: string): Promise<boolean> {
