@@ -60,18 +60,31 @@ export function BuyinForm({ sessionPlayer, onUpdate, values = DEFAULT_VALUES }: 
 
   async function handleSave() {
     setLoading(true)
-    const res = await fetch(`/api/sessions/${sessionPlayer.session_id}/players/${sessionPlayer.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ buyin_count: buyinCount, buyins_pagos: buyinsPagos, soma_ganho: somaGanho }),
-    })
+    let res: Response
+    try {
+      res = await fetch(`/api/sessions/${sessionPlayer.session_id}/players/${sessionPlayer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ buyin_count: buyinCount, buyins_pagos: buyinsPagos, soma_ganho: somaGanho }),
+      })
+    } catch (err) {
+      setLoading(false)
+      toast({ title: 'Erro de conexão ao salvar', description: String(err), variant: 'destructive' })
+      return
+    }
     setLoading(false)
     if (res.ok) {
       toast({ title: 'Atualizado!' })
       setOpen(false)
       onUpdate()
     } else {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      // Mostra o motivo real (antes só aparecia "Erro ao atualizar" e não dava pra diagnosticar)
+      const body = await res.json().catch(() => ({}))
+      toast({
+        title: 'Erro ao atualizar',
+        description: `${res.status}: ${body.error ?? res.statusText ?? 'erro desconhecido'}`,
+        variant: 'destructive',
+      })
     }
   }
 
